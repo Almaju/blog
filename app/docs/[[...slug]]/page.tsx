@@ -34,7 +34,10 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
 }
 
 export async function generateStaticParams() {
-  return source.generateParams();
+  return [
+    { slug: [] }, // Include the base /docs route
+    ...source.generateParams(),
+  ];
 }
 
 export async function generateMetadata(

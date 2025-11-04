@@ -1,9 +1,10 @@
-import type { BaseLayoutProps } from 'fumadocs-ui/layouts/shared';
+import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 
 export function baseOptions(): BaseLayoutProps {
   return {
+    links: [],
     nav: {
-      title: 'My App',
+      title: "A Journey to Programming",
     },
   };
 }

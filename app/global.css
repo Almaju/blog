@@ -1,3 +1,44 @@
 @import 'tailwindcss';
 @import 'fumadocs-ui/css/neutral.css';
 @import 'fumadocs-ui/css/preset.css';
+
+.green > rect {
+  fill: var(--color-green-300)!important;
+  stroke: var(--color-green-500)!important;
+}
+
+.dark .green > rect {
+  fill: var(--color-green-900)!important;
+  stroke: var(--color-green-500)!important;
+}
+  
+
+.red > rect {
+  fill: var(--color-red-300)!important;
+  stroke: var(--color-red-500)!important;
+}
+
+.dark .red > rect {
+  fill: var(--color-red-900)!important;
+  stroke: var(--color-red-500)!important;
+}
+
+.yellow > rect {
+  fill: var(--color-yellow-300)!important;
+  stroke: var(--color-yellow-500)!important;
+}
+
+.dark .yellow > rect {
+  fill: var(--color-yellow-900)!important;
+  stroke: var(--color-yellow-500)!important;
+}
+
+.orange > rect {
+  fill: var(--color-orange-300)!important;
+  stroke: var(--color-orange-500)!important;
+}
+
+.dark .orange > rect {
+  fill: var(--color-orange-900)!important;
+  stroke: var(--color-orange-500)!important;
+}
