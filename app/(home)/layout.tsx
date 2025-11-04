@@ -13,7 +13,7 @@ export default function Layout({ children }: LayoutProps<"/">) {
       {...baseOptions()}
       links={[
         {
-          url: "/docs/fundamentals/one-way",
+          url: "/docs/fundamentals",
           text: "Fundamentals",
         },
       ]}

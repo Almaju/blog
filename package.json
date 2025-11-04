@@ -4,19 +4,22 @@
   "private": true,
   "scripts": {
     "build": "next build",
+    "clean": "rm -rf .next",
     "dev": "next dev",
-    "start": "next start",
     "export": "next build",
-    "postinstall": "fumadocs-mdx",
+    "format": "biome format --write",
     "lint": "biome check",
-    "format": "biome format --write"
+    "postinstall": "fumadocs-mdx",
+    "start": "next start"
   },
   "dependencies": {
     "fumadocs-core": "16.0.7",
     "fumadocs-mdx": "13.0.5",
     "fumadocs-ui": "16.0.7",
     "lucide-react": "^0.548.0",
+    "mermaid": "^11.12.1",
     "next": "16.0.1",
+    "next-themes": "^0.4.6",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

@@ -566,9 +566,9 @@ graph LR
     A --> C[store.saveOrder]
     A --> D[store.savePayment]
     
-    E[✅ Good: Domain owns logic] --> F[user.save store]
-    E --> G[order.save store]
-    E --> H[payment.save store]
+    E[✅ Good: Domain owns logic] --> F["user.save(store)"]
+    E --> G["order.save(store)"]
+    E --> H["payment.save(store)"]
     
     style A red
     style E green
