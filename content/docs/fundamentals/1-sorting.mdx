@@ -17,7 +17,7 @@ This applies to:
 - Enum values
 - Everything else that forms a list
 
-If you're staring at your code wondering "where should I put this?"—the answer is alphabetical order.
+If you're staring at your code wondering "where should I put this?": the answer is alphabetical order.
 
 ## Why This Works
 
@@ -95,7 +95,7 @@ struct User {
 </Tab>
 </Tabs>
 
-Developer B doesn't know your system. Is `phoneNumber` important like `email`, or optional metadata like `lastLoginAt`? They put it at the bottom because **that's the safest social choice**—don't disturb the existing order, don't make enemies.
+Developer B doesn't know your system. Is `phoneNumber` important like `email`, or optional metadata like `lastLoginAt`? They put it at the bottom because **that's the safest social choice**: don't disturb the existing order, don't make enemies.
 
 Six months later, you have this:
 
@@ -142,7 +142,7 @@ struct User {
 </Tab>
 </Tabs>
 
-Your original logic is dead. The structure is archaeological—layers of accretion with no guiding principle. Finding anything requires scanning the entire list.
+Your original logic is dead. The structure is archaeological: layers of accretion with no guiding principle. Finding anything requires scanning the entire list.
 
 ### The Decision Tree of Chaos
 
@@ -216,7 +216,7 @@ Developer A, B, C, and Z all know where to add fields. Developer A doesn't like 
 
 There's one rule. It requires zero documentation. It needs no explanation. It's culturally neutral.
 
-When you need to find `phoneNumber`, you don't scan—you binary search mentally. "P comes after N, before R." Found it.
+When you need to find `phoneNumber`, you don't scan: you binary search mentally. "P comes after N, before R." Found it.
 
 ### The Social Dynamics
 
@@ -238,7 +238,7 @@ graph LR
 
 Without a clear convention, developers play it safe. They append. They don't refactor. They preserve the chaos because changing it feels presumptuous.
 
-With alphabetical ordering, placement is objective. You're not imposing your preference—you're following the alphabet. No politics, no ego, no archaeology required.
+With alphabetical ordering, placement is objective. You're not imposing your preference: you're following the alphabet. No politics, no ego, no archaeology required.
 
 ## Real-World Application
 

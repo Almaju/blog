@@ -4,7 +4,7 @@ export function baseOptions(): BaseLayoutProps {
   return {
     links: [],
     nav: {
-      title: "A Journey to Programming",
+      title: "The Unwrap",
     },
   };
 }

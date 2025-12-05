@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, BookOpen, Code, Zap } from "lucide-react";
+import { BookOpen, Code, Zap } from "lucide-react";
 
 export default function HomePage() {
   return (
@@ -15,10 +15,8 @@ export default function HomePage() {
           </div>
 
           <h1 className="text-5xl md:text-7xl font-bold tracking-tight bg-gradient-to-b from-foreground to-foreground/70 bg-clip-text text-transparent">
-            A Journey to
-            <br />
             <span className="bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent">
-              Programming
+              The Unwrap
             </span>
           </h1>
 
@@ -32,13 +30,6 @@ export default function HomePage() {
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-            <Link
-              href="/docs/fundamentals"
-              className="group inline-flex items-center gap-2 px-6 py-3 bg-foreground text-background hover:bg-foreground/90 rounded-lg font-semibold transition-all hover:scale-105"
-            >
-              Explore Documentation
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </Link>
             <Link
               href="/docs/fundamentals"
               className="inline-flex items-center gap-2 px-6 py-3 border hover:bg-muted rounded-lg font-semibold transition-colors"
@@ -111,7 +102,7 @@ export default function HomePage() {
               I love coding and I want to share my knowledge with the world.
             </p>
             <p>
-              This website is primarily for me — a place to document my journey,
+              This website is primarily for me : a place to document my journey,
               remember past mistakes, and learn from them. But if it helps you
               along the way, that's even better.
             </p>
