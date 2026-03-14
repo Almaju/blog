@@ -6,6 +6,12 @@ h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-serif), Georgia, serif;
 }
 
+/* Disable the grid-template-columns transition that causes the sidebar
+   to animate in when navigating from a page without a sidebar */
+#nd-docs-layout {
+  transition: none;
+}
+
 .green > rect {
   fill: var(--color-green-300)!important;
   stroke: var(--color-green-500)!important;
