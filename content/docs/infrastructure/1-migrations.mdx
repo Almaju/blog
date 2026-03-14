@@ -211,21 +211,113 @@ CREATE TABLE sessions (
 );
 ```
 
-### Application Startup
+### Data Migrations
 
-At startup, check if the current `migrate.sql` has been applied (by checksum) and run it if not. There is always at most one pending migration. No chain to manage.
+Schema diff tools like `migra` can tell you what SQL to run to transform one structure into another. They cannot tell you what to do with the data that already lives in those columns.
+
+This is the part you have to write by hand. And it matters more than the structural change.
+
+Renaming a column is a good example. The schema change is trivial. The data migration is the whole point:
 
 ```sql
-CREATE TABLE IF NOT EXISTS migrations_log (
-  applied_at   TIMESTAMP NOT NULL DEFAULT NOW(),
-  checksum     VARCHAR(64) NOT NULL,
-  filename     VARCHAR(255) NOT NULL
+-- migrate.sql  (commit: "rename email to contact")
+
+-- 1. Add the new column
+ALTER TABLE users ADD COLUMN contact VARCHAR(255);
+
+-- 2. Preserve the data — the part migra can never know
+UPDATE users SET contact = email;
+
+-- 3. Drop the old column
+ALTER TABLE users DROP COLUMN email;
+```
+
+`schema.sql` shows the end state. CI validates as before: apply `migrate.sql` to `HEAD~1:schema.sql`, diff against `HEAD:schema.sql`. If it matches, the migration is correct.
+
+A table split works the same way:
+
+```sql
+-- migrate.sql  (commit: "split users into users + contacts")
+CREATE TABLE contacts (
+  id      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id),
+  email   VARCHAR(255),
+  phone   VARCHAR(50)
+);
+
+INSERT INTO contacts (user_id, email)
+SELECT id, email FROM users;
+
+ALTER TABLE users DROP COLUMN email;
+ALTER TABLE users DROP COLUMN phone;
+```
+
+The data move is encoded directly in the commit that caused it. Future developers reading the git log see exactly what happened and why.
+
+```mermaid
+graph TD
+    A["rename email → contact"] --> B["migra generates"]
+    A --> C["You write"]
+    B --> D["ADD COLUMN\nDROP COLUMN\n❌ data lost"]
+    C --> E["ADD COLUMN\nCOPY DATA\nDROP COLUMN\n✓ data preserved"]
+    class D red
+    class E green
+```
+
+### Startup Migration
+
+The database tracks one thing: the last deployed commit.
+
+```sql
+CREATE TABLE deployment_state (
+  deployed_commit  VARCHAR(40) NOT NULL,
+  deployed_at      TIMESTAMP  NOT NULL DEFAULT NOW()
 );
 ```
 
-If the checksum of `migrate.sql` isn't in `migrations_log`, run it. Store the result. Done.
+That is the entire migration registry. No checksums, no version numbers, no migration tables. The commit SHA is the version. Git is the ledger.
 
-On a fresh database, skip `migrate.sql` entirely and bootstrap directly from `schema.sql`.
+Run this before your application starts — in an entrypoint script, a Dockerfile `CMD`, or a Kubernetes init container. The guarantee you get: if the app is up, the schema is current.
+
+```bash
+#!/bin/bash
+# migrate.sh — run before the application starts
+
+LAST_COMMIT=$(psql -t -c "SELECT deployed_commit FROM deployment_state ORDER BY deployed_at DESC LIMIT 1" | xargs)
+
+# Fresh database: bootstrap directly from schema.sql, skip migration history
+if [ -z "$LAST_COMMIT" ]; then
+  psql prod < db/schema.sql
+  psql -c "INSERT INTO deployment_state (deployed_commit) VALUES ('$(git rev-parse HEAD)')"
+  exit 0
+fi
+
+# Walk every commit that touched migrate.sql since the last deployment, oldest first
+COMMITS=$(git log --reverse ${LAST_COMMIT}..HEAD --format="%H" -- db/migrate.sql)
+
+for COMMIT in $COMMITS; do
+  echo "Applying migration from $COMMIT..."
+  git show ${COMMIT}:db/migrate.sql | psql prod
+done
+
+psql -c "INSERT INTO deployment_state (deployed_commit) VALUES ('$(git rev-parse HEAD)')"
+```
+
+Filtering with `-- db/migrate.sql` means only commits that changed the schema produce a migration step. Feature commits, bug fixes, and documentation changes are skipped automatically.
+
+```mermaid
+graph TD
+    A[App starts] --> B{deployment_state empty?}
+    B -->|Yes| C[Apply schema.sql directly]
+    B -->|No| D["Walk git log since last commit"]
+    D --> E[Apply each migrate.sql in order]
+    C --> F[Record HEAD in deployment_state]
+    E --> F
+    class C green
+    class F green
+```
+
+If migration fails, the app never starts. The deploy fails fast before serving a single request against a broken schema.
 
 ## When This Doesn't Apply
 
@@ -245,6 +337,6 @@ Same as merge conflicts in code. Both `schema.sql` and `migrate.sql` will confli
 
 Write a `rollback.sql` alongside `migrate.sql` if you need it. The two-file pattern doesn't prevent rollbacks, it just doesn't force them. In practice, rolling forward with a fix is faster than rolling back, especially for data-destroying migrations like dropping columns. That's painful regardless of your migration strategy.
 
-<Objection>Doesn't `migrate.sql` become stale after deployment?</Objection>
+<Objection>Doesn't running migrations at startup slow down the container?</Objection>
 
-Yes, and that's fine. Once applied everywhere, `migrate.sql` is just documentation until the next schema change overwrites it. The full migration history is in git for anyone who needs it.
+Only on the first boot after a schema change. The `git log` walk is fast — it's filtering a handful of commits, not scanning the full history. On every subsequent restart, `LAST_COMMIT` matches `HEAD`, the loop produces zero iterations, and the script exits immediately. The overhead is a single database query.
