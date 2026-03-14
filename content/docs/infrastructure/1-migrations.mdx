@@ -35,9 +35,9 @@ graph LR
     V001 --> V002 --> V003 --> V004 --> V005 --> V006
     V006 --> V007 --> V008["..."] --> V043["V043"]
 
-    style V005 fill:#ef4444,color:#fff
-    style V003 fill:#ef4444,color:#fff
-    style V006 fill:#f97316,color:#fff
+    class V003 red
+    class V005 red
+    class V006 orange
 ```
 
 The accumulated history doesn't describe your schema. It describes every mistake you made along the way. Congratulations, you've version controlled your own confusion.
@@ -96,7 +96,7 @@ graph TD
     E --> F{When can I delete them?}
     F --> G[No idea]
 
-    style G fill:#ef4444,color:#fff
+    class G red
 ```
 
 Going in circles.
@@ -177,9 +177,9 @@ graph TD
 
 If the schemas match, the migration is correct by definition.
 
-### Writing the Files
+### The Two Files in Practice
 
-When you change the schema, update `schema.sql` to reflect the new desired state, write `migrate.sql` to get there, and commit both.
+Change the schema, write the migration, commit both:
 
 ```sql
 -- schema.sql (after change)
@@ -215,9 +215,7 @@ CREATE TABLE sessions (
 
 Schema diff tools like `migra` can tell you what SQL to run to transform one structure into another. They cannot tell you what to do with the data that already lives in those columns.
 
-This is the part you have to write by hand. And it matters more than the structural change.
-
-Renaming a column is a good example. The schema change is trivial. The data migration is the whole point:
+That part you write by hand. A column rename shows the gap:
 
 ```sql
 -- migrate.sql  (commit: "rename email to contact")
@@ -225,16 +223,14 @@ Renaming a column is a good example. The schema change is trivial. The data migr
 -- 1. Add the new column
 ALTER TABLE users ADD COLUMN contact VARCHAR(255);
 
--- 2. Preserve the data — the part migra can never know
+-- 2. Copy the data (migra has no idea this needs to happen)
 UPDATE users SET contact = email;
 
 -- 3. Drop the old column
 ALTER TABLE users DROP COLUMN email;
 ```
 
-`schema.sql` shows the end state. CI validates as before: apply `migrate.sql` to `HEAD~1:schema.sql`, diff against `HEAD:schema.sql`. If it matches, the migration is correct.
-
-A table split works the same way:
+Same logic for a table split:
 
 ```sql
 -- migrate.sql  (commit: "split users into users + contacts")
@@ -252,14 +248,14 @@ ALTER TABLE users DROP COLUMN email;
 ALTER TABLE users DROP COLUMN phone;
 ```
 
-The data move is encoded directly in the commit that caused it. Future developers reading the git log see exactly what happened and why.
+The data move lives in the same commit that caused it.
 
 ```mermaid
 graph TD
-    A["rename email → contact"] --> B["migra generates"]
+    A["rename email to contact"] --> B["migra generates"]
     A --> C["You write"]
-    B --> D["ADD COLUMN\nDROP COLUMN\n❌ data lost"]
-    C --> E["ADD COLUMN\nCOPY DATA\nDROP COLUMN\n✓ data preserved"]
+    B --> D["ADD COLUMN\nDROP COLUMN\ndata gone"]
+    C --> E["ADD COLUMN\nCOPY DATA\nDROP COLUMN"]
     class D red
     class E green
 ```
@@ -277,7 +273,7 @@ CREATE TABLE deployment_state (
 
 That is the entire migration registry. No checksums, no version numbers, no migration tables. The commit SHA is the version. Git is the ledger.
 
-Run this before your application starts — in an entrypoint script, a Dockerfile `CMD`, or a Kubernetes init container. The guarantee you get: if the app is up, the schema is current.
+Run this before your application starts: in an entrypoint script, a Dockerfile `CMD`, or a Kubernetes init container. If the app is up, the schema is current.
 
 ```bash
 #!/bin/bash
@@ -303,7 +299,7 @@ done
 psql -c "INSERT INTO deployment_state (deployed_commit) VALUES ('$(git rev-parse HEAD)')"
 ```
 
-Filtering with `-- db/migrate.sql` means only commits that changed the schema produce a migration step. Feature commits, bug fixes, and documentation changes are skipped automatically.
+The `-- db/migrate.sql` filter skips commits that didn't touch the schema. Feature commits, bug fixes, doc changes: ignored.
 
 ```mermaid
 graph TD
@@ -339,4 +335,4 @@ Write a `rollback.sql` alongside `migrate.sql` if you need it. The two-file patt
 
 <Objection>Doesn't running migrations at startup slow down the container?</Objection>
 
-Only on the first boot after a schema change. The `git log` walk is fast — it's filtering a handful of commits, not scanning the full history. On every subsequent restart, `LAST_COMMIT` matches `HEAD`, the loop produces zero iterations, and the script exits immediately. The overhead is a single database query.
+Only on the first boot after a schema change. The `git log` walk is fast: it's filtering a handful of commits, not scanning the full history. On every subsequent restart, `LAST_COMMIT` matches `HEAD`, the loop produces zero iterations, and the script exits immediately. The overhead is a single database query.
