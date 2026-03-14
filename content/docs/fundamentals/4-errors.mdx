@@ -73,7 +73,7 @@ fn get_user_by_id(id: &str) -> Result<User, UserError> {
 
 ### Exceptions break composition
 
-Try-catch blocks don't compose. You can't map over them. You can't chain them. You end up with nested try-catch pyramids where the innermost handler has no idea what the outer ones already caught. It's spaghetti, but everyone pretends it's architecture.
+Try-catch blocks don't compose. You can't map over them. You can't chain them. You end up with nested try-catch pyramids where the innermost handler has no idea what the outer ones already caught. It's spaghetti, but everyone pretends it's architecture. The person who wrote it called it "defensive programming" and is now at another company.
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">

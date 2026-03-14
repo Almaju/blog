@@ -22,6 +22,8 @@ graph LR
 
 Nobody writes `sendEmail(buffer: Buffer)`. We all write `sendEmail(address: string)`. But we should write `sendEmail(address: EmailAddress)`. The abstraction ladder doesn't stop at primitives.
 
+In 1999, NASA lost a $327 million Mars orbiter because one engineering team measured thrust in pound-force·seconds and another in newton-seconds. Both were `float`. The type system had nothing to say about it.
+
 ## Why Primitives Are Too Primitive
 
 ### All strings are not equal, but your type signatures claim otherwise

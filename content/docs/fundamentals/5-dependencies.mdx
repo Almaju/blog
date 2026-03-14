@@ -196,7 +196,7 @@ class UserService {
 
 // Somewhere in main.ts
 container.register("DATABASE", Database); // Typo? Runtime error
-container.register("LOGER", Logger); // ← Typo! Won't know until runtime
+container.register("LOGER", Logger); // ← Typo! Fails at runtime. On a Friday.
 
 // Explicit dependencies - errors at compile time
 class UserService {
