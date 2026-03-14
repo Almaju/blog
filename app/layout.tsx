@@ -23,7 +23,7 @@ export default function Layout({ children }: LayoutProps<'/'>) {
           search={{
             options: {
               type: 'static',
-              from: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/api/search`,
+              api: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/api/search`,
             },
           }}
         >
