@@ -3,9 +3,7 @@ title: Errors
 description: Treat errors as data, not exceptions.
 ---
 
-## The Principle
-
-Handle errors like any other value in your program:
+<Principle>Handle errors like any other value in your program. Every operation that can fail returns a discriminated union. No throws. No panics. Just honest return values that force you to confront reality.</Principle>
 
 ```mermaid
 graph LR

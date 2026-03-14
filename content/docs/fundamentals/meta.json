@@ -1,5 +1,6 @@
 {
   "title": "Fundamentals",
-  "description": "Fundamentals",
-  "root": true
+  "description": "Core principles for writing clear, maintainable code",
+  "root": true,
+  "pages": ["1-sorting", "2-primitives", "3-structs", "4-errors", "5-dependencies"]
 }

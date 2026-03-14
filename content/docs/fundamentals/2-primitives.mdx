@@ -4,9 +4,7 @@ description: Wrap primitive types in domain-specific newtypes.
 ---
 
 
-## The Principle
-
- A `UserId` is not a string. An `Email` is not a string. A `Price` is not a number. Treat them accordingly.
+<Principle>Wrap every primitive that carries domain meaning in a dedicated type. Let the compiler enforce what your variable names only suggest.</Principle>
 
 We evolved past programming in raw bytes because bytes are too primitive. Now finish the job:
 

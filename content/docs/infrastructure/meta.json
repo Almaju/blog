@@ -1,0 +1,6 @@
+{
+  "title": "Infrastructure",
+  "description": "Tools, environment, and infrastructure patterns",
+  "root": true,
+  "pages": ["1-migrations"]
+}
