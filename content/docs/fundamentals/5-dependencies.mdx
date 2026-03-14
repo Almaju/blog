@@ -28,7 +28,7 @@ graph TD
     class I red
 ```
 
-If you can't tell what a class depends on by looking at its constructor, your architecture is lying to you.
+If you can't tell what a class depends on by looking at its constructor, your architecture is lying to you. And every lie it tells becomes a bug you'll find at runtime instead of compile time.
 
 ## Why Singletons Are Poison
 
@@ -107,7 +107,7 @@ impl UserService {
 
 ### They make testing a nightmare
 
-Two tests running in parallel both mutate the same singleton. Race condition. Flaky tests. Debugging hell.
+Two tests running in parallel both mutate the same singleton. Race condition. Flaky tests. The test passes locally, fails in CI, passes again when you re-run it. You spend an hour writing "works on my machine" in Slack. This is the singleton tax.
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
@@ -176,7 +176,7 @@ graph TD
     style H red
 ```
 
-Change the singleton's interface? Now you're grep-ing the entire codebase to find who's using it. The compiler can't help you because the dependency is invisible.
+Change the singleton's interface? Now you're grep-ing the entire codebase hoping you got them all. The compiler can't help because the dependency is invisible. Invisible dependencies are the cockroaches of software architecture: everywhere, impossible to count, surviving every refactor.
 
 ## Why Dependency Injection Frameworks Are Worse
 
@@ -240,20 +240,20 @@ let user_service = UserService::new(db, logger);
 
 ### They obscure the dependency graph
 
-With DI frameworks, you can't see what depends on what. You have to run the program and hope the container resolves correctly.
+With DI frameworks, you can't see what depends on what by reading the code. You configure strings in one file, inject by annotation in another, and hope the container resolves it all correctly at runtime. When it doesn't, you get an error message that tells you something failed to wire, but not why, and not where to look.
 
 ```mermaid
 graph TD
-    A[Container] --> B[???]
+    A[DI Container] --> B[???]
     B --> C[???]
     C --> D[???]
-    D --> E[Runtime Error]
-    
-    F[Explicit Constructor] --> G[Database]
+    D --> E[Fails at runtime with a cryptic message]
+
+    F[Explicit constructor] --> G[Database]
     F --> H[Logger]
     F --> I[ConfigService]
     I --> J[FileSystem]
-    
+
     style E red
     style F green
     style G green
@@ -703,7 +703,7 @@ impl Store {
 </Tab>
 </Tabs>
 
-This pattern keeps your domain logic centralized and your infrastructure dumb. The `Store` doesn't need to know about `Order` vs `User` validation rules. Each domain object knows its own invariants.
+This keeps your domain logic centralized and your infrastructure dumb. The `Store` is a mechanical layer: it reads and writes. It doesn't know what makes a `User` valid any more than a filing cabinet knows what makes a contract legal. Business rules live in business objects.
 
 ## Practical Wiring
 
@@ -942,6 +942,4 @@ impl ConnectionFactory {
 </Tab>
 </Tabs>
 
----
-
-**The bottom line**: Dependencies should be as visible as everything else in your code. If you can't see it in the type signature, it's hiding from you. And hidden dependencies are where bugs live.
+If it's not in the type signature, it's hiding from you. And things that hide from you bite you in production.

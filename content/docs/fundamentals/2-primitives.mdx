@@ -6,39 +6,25 @@ description: Wrap primitive types in domain-specific newtypes.
 
 <Principle>Wrap every primitive that carries domain meaning in a dedicated type. Let the compiler enforce what your variable names only suggest.</Principle>
 
-We evolved past programming in raw bytes because bytes are too primitive. Now finish the job:
+We evolved past programming in raw bytes because bytes are too primitive to think in. The same logic applies one level up. Finish the job:
 
 ```mermaid
-graph TD
-    A[Raw Bytes] --> B[Primitives: string, number, bool]
-    B --> C[Domain Types: UserId, Email, Price]
-    
-    D[❌ We stopped here] -.-> B
-    E[✅ We should be here] --> C
-    
-    B --> F[Too generic]
-    B --> G[No constraints]
-    B --> H[Wrong operations allowed]
-    
-    C --> I[Specific meaning]
-    C --> J[Built-in validation]
-    C --> K[Type-safe operations]
-    
-    style D red
-    style E green
-    style F red
-    style G red
-    style H red
-    style I green
-    style J green
-    style K green
+graph LR
+    A[Raw Bytes] --> B[string, number, bool]
+    B --> C[UserId, Email, Price]
+
+    B -.-> D[❌ Industry stopped here]
+    C --> E[✅ Compiler enforces what comments only suggest]
+
+    class D red
+    class E green
 ```
 
 Nobody writes `sendEmail(buffer: Buffer)`. We all write `sendEmail(address: string)`. But we should write `sendEmail(address: EmailAddress)`. The abstraction ladder doesn't stop at primitives.
 
 ## Why Primitives Are Too Primitive
 
-### All strings are not equal
+### All strings are not equal, but your type signatures claim otherwise
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
@@ -120,11 +106,11 @@ fn send_invoice(
 </Tab>
 </Tabs>
 
-The compiler becomes your pair programmer. It won't let you accidentally use a `UserId` where an `Email` belongs.
+The compiler becomes your pair programmer. One that actually pays attention. It won't let you accidentally pass a `UserId` where an `Email` belongs, and it won't let you slip a `string` past either.
 
 ### Newtypes enforce invariants
 
-Not all numbers are valid for all domains:
+You know `price` must be positive. You wrote a comment saying so. Three months later someone passes `-50` and you get a runtime error in production. Comments are not enforcement. Newtypes are:
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
@@ -413,20 +399,16 @@ Validation should happen once: when data enters your system.
 
 ```mermaid
 graph LR
-    A[External World] --> B[Parse/Validate]
-    B --> C[Domain Types]
-    C --> D[Business Logic]
-    D --> E[More Business Logic]
-    E --> F[Even More Logic]
-    F --> G[Serialize]
-    G --> H[External World]
-    
-    B --> I[Only place errors occur]
-    C --> J[Type-safe from here on]
-    
-    style B yellow
-    style I yellow
-    style J green
+    A[External Input] --> B[Parse Once]
+    B -->|valid| C[Domain Types]
+    B -->|invalid| D[Error]
+    C --> E[Business Logic]
+    E --> F[Serialize]
+
+    class B yellow
+    class D red
+    class C green
+    class E green
 ```
 
 <Tabs items={['TypeScript', 'Rust']}>
@@ -651,252 +633,6 @@ let maybe_paragraph: Result<Paragraph, _> = description.try_into();
 
 The type system tracks which conversions can fail and which can't. `From` trait means "always succeeds". `TryFrom` means "might fail".
 
-## Use Battle-Tested Libraries
-
-Don't reinvent time, dates, or durations. Use proven libraries:
-
-<Tabs items={['TypeScript', 'Rust']}>
-<Tab value="TypeScript">
-```typescript
-// ❌ Don't do this
-class MyCustomDate {
-  constructor(private timestamp: number) {}
-  // Hundreds of edge cases you'll get wrong
-}
-
-// ✅ Use Temporal (modern) or date-fns
-import { Temporal } from "@js-temporal/polyfill";
-
-type Timestamp = Temporal.Instant;
-type Date = Temporal.PlainDate;
-type DateTime = Temporal.ZonedDateTime;
-type Duration = Temporal.Duration;
-
-class Appointment {
-  constructor(
-    private id: AppointmentId,
-    private scheduledFor: DateTime,
-    private duration: Duration,
-  ) {}
-  
-  getEndTime(): DateTime {
-    return this.scheduledFor.add(this.duration);
-  }
-  
-  isUpcoming(now: Timestamp): boolean {
-    return Temporal.Instant.compare(
-      this.scheduledFor.toInstant(),
-      now
-    ) > 0;
-  }
-}
-```
-</Tab>
-<Tab value="Rust">
-```rust
-// ❌ Don't do this
-struct MyCustomDate {
-    timestamp: i64,
-}
-
-// ✅ Use chrono
-use chrono::{DateTime, Duration, Utc};
-
-type Timestamp = DateTime<Utc>;
-
-struct Appointment {
-    id: AppointmentId,
-    scheduled_for: Timestamp,
-    duration: Duration,
-}
-
-impl Appointment {
-    fn get_end_time(&self) -> Timestamp {
-        self.scheduled_for + self.duration
-    }
-    
-    fn is_upcoming(&self, now: Timestamp) -> bool {
-        self.scheduled_for > now
-    }
-}
-```
-</Tab>
-</Tabs>
-
-Time is hard. Dates are hard. Use libraries that have already solved the edge cases.
-
-## Building Your Domain Language
-
-Newtypes are how you extend the language to fit your domain:
-
-```mermaid
-graph TD
-    A[Standard Library] --> B[string, number, bool]
-    
-    C[Your Domain Language] --> D[UserId, Email, Username]
-    C --> E[Price, Discount, Tax]
-    C --> F[Latitude, Longitude, GeoPoint]
-    C --> G[Title, Paragraph, Description]
-    C --> H[OrderId, ProductId, CustomerId]
-    
-    B -.->|Extend| C
-    
-    I[Every Domain Has Custom Types]
-    
-    style A yellow
-    style C green
-    style I green
-```
-
-**This should be your first step in any project**: Define your domain types before you write business logic.
-
-<Tabs items={['TypeScript', 'Rust']}>
-<Tab value="TypeScript">
-```typescript
-// types/domain.ts - Define your language first
-
-// Identity types
-export class UserId {
-  private constructor(private readonly value: string) {}
-  static generate(): UserId { /* UUID v4 */ }
-  static parse(s: string): Result<UserId, ValidationError> { /* ... */ }
-  getValue(): string { return this.value; }
-}
-
-export class OrderId { /* ... */ }
-export class ProductId { /* ... */ }
-
-// Contact types
-export class Email { /* ... */ }
-export class PhoneNumber { /* ... */ }
-export class Address { /* ... */ }
-
-// Money types
-export class Price {
-  private constructor(
-    private readonly amount: PositiveNumber,
-    private readonly currency: Currency,
-  ) {}
-  
-  add(other: Price): Result<Price, CurrencyMismatchError> {
-    // Can only add prices in same currency
-  }
-  
-  multiply(factor: number): Price {
-    // Scale price
-  }
-}
-
-export class Discount {
-  private constructor(private readonly percentage: Percentage) {}
-  
-  apply(price: Price): Price {
-    return price.multiply(1 - this.percentage.getValue() / 100);
-  }
-}
-
-// Text types
-export class Title { /* 1-100 chars */ }
-export class Paragraph { /* 50-200 chars */ }
-export class Description { /* 3+ chars */ }
-
-// Now write business logic using your language
-class Order {
-  constructor(
-    private id: OrderId,
-    private customerId: UserId,
-    private items: OrderItem[],
-    private discount?: Discount,
-  ) {}
-  
-  calculateTotal(): Price {
-    const subtotal = this.items
-      .map(item => item.getPrice())
-      .reduce((a, b) => a.add(b).unwrap());
-    
-    return this.discount 
-      ? this.discount.apply(subtotal)
-      : subtotal;
-  }
-}
-```
-</Tab>
-<Tab value="Rust">
-```rust
-// domain/types.rs - Define your language first
-
-// Identity types
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct UserId(Uuid);
-
-impl UserId {
-    pub fn generate() -> Self { /* UUID v4 */ }
-    pub fn parse(s: &str) -> Result<Self, ValidationError> { /* ... */ }
-    pub fn as_str(&self) -> &str { self.0.as_str() }
-}
-
-pub struct OrderId(Uuid);
-pub struct ProductId(Uuid);
-
-// Contact types
-pub struct Email(String);
-pub struct PhoneNumber(String);
-pub struct Address { /* ... */ }
-
-// Money types
-pub struct Price {
-    amount: PositiveNumber,
-    currency: Currency,
-}
-
-impl Price {
-    pub fn add(&self, other: &Price) -> Result<Price, CurrencyMismatchError> {
-        // Can only add same currency
-    }
-    
-    pub fn multiply(&self, factor: f64) -> Price {
-        // Scale price
-    }
-}
-
-pub struct Discount(Percentage);
-
-impl Discount {
-    pub fn apply(&self, price: &Price) -> Price {
-        price.multiply(1.0 - self.0.get() / 100.0)
-    }
-}
-
-// Text types
-pub struct Title(String); // 1-100 chars
-pub struct Paragraph(String); // 50-200 chars
-pub struct Description(String); // 3+ chars
-
-// Business logic uses your language
-struct Order {
-    id: OrderId,
-    customer_id: UserId,
-    items: Vec<OrderItem>,
-    discount: Option<Discount>,
-}
-
-impl Order {
-    fn calculate_total(&self) -> Price {
-        let subtotal = self.items
-            .iter()
-            .map(|item| item.get_price())
-            .fold(Price::zero(), |a, b| a.add(&b).unwrap());
-        
-        match &self.discount {
-            Some(d) => d.apply(&subtotal),
-            None => subtotal,
-        }
-    }
-}
-```
-</Tab>
-</Tabs>
-
 ## When This Doesn't Apply
 
 ### Prototyping and exploration
@@ -984,6 +720,4 @@ Not everything. Use newtypes for:
 
 Don't wrap booleans or enums unless they have domain-specific meaning.
 
----
-
-**The bottom line**: Primitives are the assembly language of your domain. Newtypes are the high-level language. We stopped programming in assembly for a reason. Now stop programming in primitives.
+Primitives are the assembly language of your domain. Newtypes are the high-level language. You stopped writing assembly because it makes you think at the wrong level. Stop writing `string` for the same reason.

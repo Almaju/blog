@@ -19,13 +19,11 @@ graph LR
     class F yellow
 ```
 
-Every operation that can fail should return a discriminated union representing success or failure. No throws. No panics. Just honest return values that force you to confront reality.
-
-## Why This Works
+## Your Type Signatures Are Lying to You
 
 ### Exception-based error handling lies to you
 
-When you write `getUserById(id)`, what does the type signature promise? In most languages: "I return a User." But that's a lie. It might throw `NetworkError`, `ValidationError`, `NotFoundError`, or a dozen other exceptions. The type system doesn't track this. Your IDE can't help you. You're flying blind.
+When you write `getUserById(id)`, what does the type signature promise? In most languages: "I return a User." That's a lie. It might throw `NetworkError`, `ValidationError`, `NotFoundError`, or a dozen others depending on which developer touched it last. The type system doesn't track this. Your IDE can't help you. The only way to know is to read every line of the implementation and all its callees. You're not writing software at this point; you're doing archaeology.
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
@@ -75,7 +73,7 @@ fn get_user_by_id(id: &str) -> Result<User, UserError> {
 
 ### Exceptions break composition
 
-Try-catch blocks don't compose. You can't map over them. You can't chain them elegantly. You can't pass them through functional pipelines.
+Try-catch blocks don't compose. You can't map over them. You can't chain them. You end up with nested try-catch pyramids where the innermost handler has no idea what the outer ones already caught. It's spaghetti, but everyone pretends it's architecture.
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
@@ -124,21 +122,13 @@ graph TD
     A[Operation Failed] --> B{Error Type?}
     B -->|NetworkError| C[Retry with backoff]
     B -->|ValidationError| D[Show form errors]
-    B -->|NotFoundError| E[Redirect to 404]
-    B -->|AuthError| F[Refresh token]
-    B -->|RateLimitError| G[Queue for later]
-    
-    C --> H[Success or escalate]
-    D --> I[User fixes input]
-    E --> J[Alternative flow]
-    F --> K[Retry original request]
-    G --> L[Background processing]
-    
+    B -->|AuthError| E[Refresh token]
+    B -->|RateLimitError| F[Queue for later]
+
     class C yellow
     class D yellow
     class E yellow
     class F yellow
-    class G yellow
 ```
 
 <Tabs items={['TypeScript', 'Rust']}>
@@ -232,32 +222,17 @@ graph TD
     A[AppError] --> B[UserError]
     A --> C[SystemError]
     A --> D[ExternalError]
-    
-    B --> B1[ValidationError]
-    B --> B2[AuthenticationError]
-    B --> B3[PermissionError]
-    
-    C --> C1[DatabaseError]
-    C --> C2[FileSystemError]
-    C --> C3[ConfigError]
-    
-    D --> D1[NetworkError]
-    D --> D2[ThirdPartyApiError]
-    D --> D3[TimeoutError]
-    
-    B1 --> E1[Show form errors]
-    C1 --> E2[Alert engineering]
-    D1 --> E3[Retry with backoff]
-    
-    class B1 yellow
-    class B2 yellow
-    class B3 yellow
-    class C1 red
-    class C2 red
-    class C3 red
-    class D1 orange
-    class D2 orange
-    class D3 orange
+
+    B --> E[Show message to user]
+    C --> F[Alert engineering]
+    D --> G[Retry with backoff]
+
+    class B yellow
+    class C red
+    class D orange
+    class E yellow
+    class F red
+    class G orange
 ```
 
 <Tabs items={['TypeScript', 'Rust']}>
@@ -500,17 +475,17 @@ Incrementally:
 
 ```mermaid
 graph LR
-    A[Throwing Code] --> B[Wrapped Boundary]
-    B --> C[Result-based Core]
-    C --> D[Full Migration]
-    
+    A[Throwing legacy code] --> B[Wrap at the boundary]
+    B --> C[New code uses Result]
+    C --> D[Legacy is fully encapsulated]
+
     class A red
     class B orange
     class C yellow
     class D green
 ```
 
-Start at the edges. Wrap third-party libraries. Convert new code to Results. Gradually refactor inward. You don't need to boil the ocean.
+Start at the edges. Wrap third-party libraries. Write all new code with Results. Refactor inward when you touch legacy code anyway. You don't need to boil the ocean all at once.
 
 <Objection>What about async/await with Results?</Objection>
 
@@ -552,6 +527,4 @@ async fn fetch_user(id: &str) -> Result<User, ApiError> {
 
 Granular enough to make different decisions. If two errors require identical handling, they can be the same type. If they require different recovery strategies, split them.
 
----
-
-**The bottom line**: Errors are not exceptional. They're expected. Treat them like the first-class citizens they are. Your future self: debugging a production incident at 2 AM: will thank you for making every failure case explicit and recoverable.
+Errors are not exceptional. They're expected. The network goes down. Users send garbage. Third-party APIs return 500s at 2 AM. Treat failure as the default, not the surprise. Your type signatures should say so.

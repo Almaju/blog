@@ -5,17 +5,9 @@ description: Sort your code alphabetically unless you have a documented reason n
 
 <Principle>Sort your code alphabetically unless you have a documented reason not to.</Principle>
 
-This applies to:
-- Object properties
-- Table columns
-- Function parameters
-- Class methods
-- React component props
-- Import statements
-- Enum values
-- Everything else that forms a list
+Object properties, table columns, function parameters, class methods, React component props, import statements, enum values. Everything that forms a list.
 
-If you're staring at your code wondering "where should I put this?": the answer is alphabetical order.
+If you're staring at your code wondering where to put this field, the answer is alphabetical order. Not "important stuff first". Not "related things together". Alphabetical. Every time.
 
 ## Why This Works
 
@@ -56,7 +48,7 @@ struct User {
 </Tab>
 </Tabs>
 
-Developer A is proud of this structure. ID first (primary key!), timestamps last (metadata!), business fields in the middle. Makes perfect sense.
+Developer A is proud of this structure. ID first (primary key!), timestamps last (metadata!), business fields in the middle. It has a logic. A logic that exists only inside Developer A's head.
 
 Then Developer B adds a field:
 
@@ -93,7 +85,7 @@ struct User {
 </Tab>
 </Tabs>
 
-Developer B doesn't know your system. Is `phoneNumber` important like `email`, or optional metadata like `lastLoginAt`? They put it at the bottom because **that's the safest social choice**: don't disturb the existing order, don't make enemies.
+Developer B doesn't know your system. Is `phoneNumber` important like `email`, or optional metadata like `lastLoginAt`? No idea. So they put it at the bottom because **that's the safest social choice**: don't disturb the existing order, don't make enemies, don't own the decision.
 
 Six months later, you have this:
 
@@ -140,28 +132,28 @@ struct User {
 </Tab>
 </Tabs>
 
-Your original logic is dead. The structure is archaeological: layers of accretion with no guiding principle. Finding anything requires scanning the entire list.
+Your original logic is dead. The structure is now archaeological: layers of accretion with no guiding principle. Finding anything requires scanning the whole thing, top to bottom, every time. Congratulations, you've built a list you have to read like a novel.
 
 ### The Decision Tree of Chaos
 
 ```mermaid
 graph TD
-    A[Need to add new field] --> B{Where does it go?}
-    B -->|Original dev's logic| C[Unknown to me]
-    B -->|My logic| D[Different from theirs]
-    B -->|Safest choice| E[Bottom of the list]
-    
-    C --> F[Scan entire structure]
+    A[Need to add a field] --> B{Where does it go?}
+    B -->|Original dev's logic| C[Unknown to outsiders]
+    B -->|My logic| D[Conflicts with theirs]
+    B -->|Safe choice| E[Tack it on at the bottom]
+
+    C --> F[Scan everything, guess]
     D --> F
     E --> F
-    
-    F --> G[6 months later]
-    G --> H[No pattern remains]
-    
+
+    F --> G[6 devs later]
+    G --> H[Structure is pure sediment]
+
     class H red
 ```
 
-Every developer makes microdecisions based on their mental model. These models never align. The result: entropy.
+Every developer makes microdecisions based on their mental model. Those models never align, and nobody documents them. The result: entropy baked into your data structures before a single business rule is written.
 
 ### Alphabetical Order Needs No Explanation
 
@@ -216,162 +208,9 @@ There's one rule. It requires zero documentation. It needs no explanation. It's 
 
 When you need to find `phoneNumber`, you don't scan: you binary search mentally. "P comes after N, before R." Found it.
 
-### The Social Dynamics
-
-Here's what actually happens in teams:
-
-```mermaid
-graph LR
-    A[Ambiguous Ordering] --> B[Fear of Breaking Implicit Rules]
-    B --> C[Append to Bottom]
-    C --> D[Loss of Structure]
-    
-    E[Alphabetical Rule] --> F[Clear Convention]
-    F --> G[Confident Placement]
-    G --> H[Maintained Structure]
-    
-    class D red
-    class H green
-```
-
 Without a clear convention, developers play it safe. They append. They don't refactor. They preserve the chaos because changing it feels presumptuous.
 
 With alphabetical ordering, placement is objective. You're not imposing your preference: you're following the alphabet. No politics, no ego, no archaeology required.
-
-## Real-World Application
-
-### Object Properties
-
-<Tabs items={['TypeScript', 'Rust']}>
-<Tab value="TypeScript">
-```typescript
-// ❌ Avoid: "Logical" grouping that only makes sense to you
-const config = {
-  apiUrl: "https://api.example.com",
-  apiKey: "secret",
-  timeout: 5000,
-  retries: 3,
-  enableLogging: true,
-  logLevel: "info",
-  maxConnections: 10,
-};
-
-// ✅ Prefer: Alphabetical
-const config = {
-  apiKey: "secret",
-  apiUrl: "https://api.example.com",
-  enableLogging: true,
-  logLevel: "info",
-  maxConnections: 10,
-  retries: 3,
-  timeout: 5000,
-};
-```
-</Tab>
-<Tab value="Rust">
-```rust
-// ❌ Avoid: "Logical" grouping that only makes sense to you
-struct Config {
-    api_url: String,
-    api_key: String,
-    timeout: u64,
-    retries: u32,
-    enable_logging: bool,
-    log_level: String,
-    max_connections: u32,
-}
-
-// ✅ Prefer: Alphabetical
-struct Config {
-    api_key: String,
-    api_url: String,
-    enable_logging: bool,
-    log_level: String,
-    max_connections: u32,
-    retries: u32,
-    timeout: u64,
-}
-```
-</Tab>
-</Tabs>
-
-### React Component Props
-
-<Tabs items={['TypeScript', 'Rust']}>
-<Tab value="TypeScript">
-```tsx
-// ❌ Avoid: Random order from stream of consciousness
-<UserProfile
-  isActive={true}
-  name="Alice"
-  onUpdate={handleUpdate}
-  email="alice@example.com"
-  role="admin"
-  avatar="/images/avatar.jpg"
-/>
-
-// ✅ Prefer: Alphabetical
-<UserProfile
-  avatar="/images/avatar.jpg"
-  email="alice@example.com"
-  isActive={true}
-  name="Alice"
-  onUpdate={handleUpdate}
-  role="admin"
-/>
-```
-</Tab>
-<Tab value="Rust">
-```rust
-// In Rust, this applies to struct initialization and builder patterns
-// ❌ Avoid: Random order
-let profile = UserProfile {
-    is_active: true,
-    name: "Alice".to_string(),
-    email: "alice@example.com".to_string(),
-    role: Role::Admin,
-    avatar: "/images/avatar.jpg".to_string(),
-};
-
-// ✅ Prefer: Alphabetical
-let profile = UserProfile {
-    avatar: "/images/avatar.jpg".to_string(),
-    email: "alice@example.com".to_string(),
-    is_active: true,
-    name: "Alice".to_string(),
-    role: Role::Admin,
-};
-```
-</Tab>
-</Tabs>
-
-### Database Tables
-
-```sql
--- ❌ Avoid: "Primary key first, timestamps last" logic
-CREATE TABLE users (
-  id UUID PRIMARY KEY,
-  email VARCHAR(255) NOT NULL,
-  name VARCHAR(100),
-  role VARCHAR(50),
-  phone_number VARCHAR(20),
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
-
--- ✅ Prefer: Alphabetical (with documented exceptions)
-CREATE TABLE users (
-  created_at TIMESTAMP DEFAULT NOW(),
-  email VARCHAR(255) NOT NULL,
-  id UUID PRIMARY KEY,  -- Exception: PK declared here for SQL constraints
-  name VARCHAR(100),
-  phone_number VARCHAR(20),
-  role VARCHAR(50),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
-```
-
-Actually, for SQL specifically, you might want a documented exception because constraints matter. Which brings us to...
 
 ## When Not To Sort Alphabetically
 
@@ -629,55 +468,4 @@ Don't create churn. But establish the convention and migrate gradually.
 
 <Objection>What about imports? Sometimes I group by source (stdlib, external, internal).</Objection>
 
-That's a documented exception. Many style guides do this:
-
-<Tabs items={['TypeScript', 'Rust']}>
-<Tab value="TypeScript">
-```typescript
-// Standard library (alphabetical)
-import { readFile } from 'fs/promises';
-import { join } from 'path';
-
-// External packages (alphabetical)
-import express from 'express';
-import { z } from 'zod';
-
-// Internal modules (alphabetical)
-import { Database } from './database';
-import { logger } from './logger';
-```
-</Tab>
-<Tab value="Rust">
-```rust
-// Standard library (alphabetical)
-use std::fs::File;
-use std::path::Path;
-
-// External crates (alphabetical)
-use axum::Router;
-use serde::{Deserialize, Serialize};
-
-// Internal modules (alphabetical)
-use crate::database::Database;
-use crate::logger::Logger;
-```
-</Tab>
-</Tabs>
-
-Groups are fine. Within groups: alphabetical.
-
-## The Bottom Line
-
-Alphabetical ordering is not sexy. It's not clever. It will never win you architecture debates.
-
-It's also the only ordering system that:
-- Requires zero mental overhead
-- Needs no documentation (unless you're breaking it)
-- Works across cultures, teams, and time zones
-- Scales from 5 fields to 500
-- Enables instant lookup
-- Eliminates bikeshedding
-
-**When in doubt: A comes before B.**
-
-Everything else is optional complexity that needs to justify its existence in writing.
+That's a documented exception, and it's in most style guides. Grouping by source is fine. Within each group: alphabetical. You're not breaking the rule, you're applying it one layer down.

@@ -11,22 +11,9 @@ export default function HomePage() {
         <div className="relative z-10 max-w-3xl mx-auto space-y-6">
           <h1 className="text-4xl md:text-6xl font-bold tracking-tight">
             <span className="bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent">
-              The Unwrap
+              Principles, not platitudes.
             </span>
           </h1>
-
-          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-            Programming craftsmanship. Opinionated, specific, actionable.
-          </p>
-
-          <div className="flex items-center justify-center pt-2">
-            <Link
-              href="/docs/fundamentals/1-sorting"
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold transition-colors"
-            >
-              Start Reading
-            </Link>
-          </div>
         </div>
       </section>
 
@@ -63,42 +50,33 @@ export default function HomePage() {
 
           <h2>The Real Disease</h2>
 
-          <Mermaid chart={`graph TD
-    A[Same Problem] --> B[Framework A Solution]
-    A --> C[Framework B Solution]
-    A --> D[Framework C Solution]
-    A --> E[Framework D Solution]
-    B --> F[Different Names]
-    C --> F
-    D --> F
-    E --> F
-    F --> G[Confusion]
-    G --> H[Cargo Culting]
-    H --> I[Bad Code]`} />
+          <Mermaid
+            chart={`graph TD
+    A[No clear principles] --> B[Framework A]
+    A --> C[Framework B]
+    B --> D[New names. Same mess.]
+    C --> D
+    D --> A
+    class A orange
+    class D red`}
+          />
 
           <p>
             Programming suffers from a naming crisis. Not the &ldquo;naming
             things is hard&rdquo; platitude: everyone knows that. The real
-            problem: <strong>there are too many ways to do the same thing, and
-            we can&apos;t agree on what to call any of them</strong>.
+            problem:{" "}
+            <strong>
+              there are too many ways to do the same thing, and we can&apos;t
+              agree on what to call any of them
+            </strong>
+            .
           </p>
 
-          <p>Want to organize business logic? Choose your poison:</p>
-          <ul>
-            <li>Service Layer</li>
-            <li>Use Case Layer</li>
-            <li>Application Services</li>
-            <li>Domain Services</li>
-            <li>Handlers</li>
-            <li>Managers</li>
-            <li>Coordinators</li>
-          </ul>
-
           <p>
-            All of these might do the exact same thing in your codebase. Or
-            they might not. There&apos;s no standard. So developers reach for
-            architectural vocabulary like life preservers, hoping the names will
-            save them from drowning in their own complexity.
+            Want to organize business logic? Pick from Service Layer, Use Case,
+            Application Service, Handler, Manager, or Coordinator. They might
+            all do the same thing in your codebase. Or not. There&apos;s no
+            standard.
           </p>
 
           <p>They won&apos;t.</p>
@@ -123,11 +101,10 @@ export default function HomePage() {
 
           <p>
             Domain-Driven Design has good ideas. The problem is everyone claims
-            to do it, and almost everyone does it wrong. They adopt the
-            terminology: Entities, Value Objects, Repositories: without
-            understanding the underlying principles. They think DDD means
-            &ldquo;put your database tables in a folder called
-            &lsquo;domain&rsquo;.&rdquo;
+            to do it, and almost nobody does it right. They learn the vocabulary
+            (Entities, Value Objects, Repositories, Aggregates) and stop there,
+            before the understanding. They think DDD means &ldquo;put your
+            database tables in a folder called &lsquo;domain&rsquo;.&rdquo;
           </p>
 
           <p>It doesn&apos;t.</p>
@@ -135,6 +112,56 @@ export default function HomePage() {
           <p>
             The result: codebases full of domain-ish words pointing at
             architectural mush.
+          </p>
+
+          <h2>Fuck the Trade-offs</h2>
+
+          <p>Ask any senior engineer a technical question. You know what you&apos;ll get.</p>
+
+          <p>&ldquo;It depends.&rdquo;</p>
+
+          <p>
+            Should I sort my methods? <em>It depends.</em> Should I use
+            exceptions or typed errors? <em>It depends.</em> Should I pass
+            dependencies explicitly? <em>It depends.</em>
+          </p>
+
+          <Mermaid
+            chart={`graph TD
+    A[Technical question] --> B[It depends]
+    B --> C[Nothing to push against]
+    A --> D[Here is a principle]
+    D --> E[With explicit exceptions]
+    E --> F[You can reason about it]
+    class B red
+    class C red
+    class D green
+    class F green`}
+          />
+
+          <p>
+            This is not wisdom. It&apos;s cowardice dressed up as nuance.
+          </p>
+
+          <p>
+            Yes, every problem has context. No, that doesn&apos;t mean all
+            solutions are equal. In 99% of cases there is a better approach,
+            and the reason nobody says it out loud is they&apos;re scared of
+            being wrong.
+          </p>
+
+          <p>
+            The framing is also broken. The choice is never just A or B. It
+            never was. &ldquo;Should I use a Service or a Use Case?&rdquo; is
+            the wrong question. The right question is what this code actually
+            does, and whether the name tells the truth. That has an answer.
+          </p>
+
+          <p>
+            This blog has opinions. They will be stated as facts. If the
+            context of your problem makes them wrong, you&apos;ll know
+            why, because the principle is explicit enough to reason about.
+            &ldquo;It depends&rdquo; gives you nothing to push against.
           </p>
 
           <h2>Why This Matters More Now</h2>
@@ -149,21 +176,23 @@ export default function HomePage() {
             <strong>Knowing what to ask for.</strong>
           </p>
 
-          <Mermaid chart={`graph LR
+          <Mermaid
+            chart={`graph LR
     A[Developer Intent] --> B[AI Generation]
     B --> C[Code]
     A2[Unclear Intent] --> B2[AI Generation]
     B2 --> C2[Vomit Code]
     class A green
     class C green
-    class A2 red
-    class C2 red`} />
+    class A2 orange
+    class C2 red`}
+          />
 
           <p>
-            If you can&apos;t articulate what you want clearly, AI will give
-            you working garbage. The better AI gets at generating code, the
-            more critical your architectural clarity becomes. You need
-            principles, not just syntax.
+            If you can&apos;t articulate what you want clearly, AI will give you
+            working garbage. The better AI gets at generating code, the more
+            critical your architectural clarity becomes. You need principles,
+            not just syntax.
           </p>
 
           <p>You need craftsmanship.</p>
@@ -177,9 +206,15 @@ export default function HomePage() {
 
           <p>The format:</p>
           <ol>
-            <li><strong>The Principle</strong>: What you should do</li>
-            <li><strong>The Demonstration</strong>: Why it works, with evidence</li>
-            <li><strong>The Counterarguments</strong>: When it doesn&apos;t apply</li>
+            <li>
+              <strong>The Principle</strong>: What you should do
+            </li>
+            <li>
+              <strong>The Demonstration</strong>: Why it works, with evidence
+            </li>
+            <li>
+              <strong>The Counterarguments</strong>: When it doesn&apos;t apply
+            </li>
           </ol>
 
           <p>
@@ -199,12 +234,10 @@ export default function HomePage() {
           </p>
 
           <p>
-            <strong>Programming is a craft</strong>. The tools get better, but
-            the fundamentals don&apos;t change. Beautiful code is still
-            beautiful. Vomit code is still vomit.
+            <strong>Programming is a craft.</strong> The tools get better. The
+            fundamentals don&apos;t. Beautiful code is still beautiful. Vomit
+            code is still vomit.
           </p>
-
-          <p>Let&apos;s make more of the former and less of the latter.</p>
 
           <div className="pt-4">
             <Link
