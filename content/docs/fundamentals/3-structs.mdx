@@ -1043,25 +1043,25 @@ But if you find yourself passing the same context to many functions, that contex
 
 If you're writing a one-off script or exploring a problem space, structs might be premature. But once you understand the domain, structure it.
 
-## FAQ
+## "Actually..."
 
-**Q: Is this just object-oriented programming?**
+<Objection>Is this just object-oriented programming?</Objection>
 
 No. Functional languages use modules the same way. The organization principle is universal. The mutation semantics differ.
 
-**Q: How do I know if my struct is well-designed?**
+<Objection>How do I know if my struct is well-designed?</Objection>
 
 Ask: "If I come back in 6 months, will I understand what this does?" If yes, good. If no, rename or restructure.
 
-**Q: What if my struct has 20+ methods?**
+<Objection>What if my struct has 20+ methods?</Objection>
 
 That's fine if they're all related. But consider: could this be multiple structs composed together?
 
-**Q: Should everything be a struct?**
+<Objection>Should everything be a struct?</Objection>
 
 No. But most things that represent concepts in your domain should be. User. Email. Order. GPSCoordinates. Invoice. These deserve structs.
 
-**Q: What about generic "helpers" or "utils"?**
+<Objection>What about generic "helpers" or "utils"?</Objection>
 
 Those are code smells. They usually mean you haven't found the right struct to attach the logic to. Keep looking.
 

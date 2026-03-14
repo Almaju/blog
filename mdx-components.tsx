@@ -4,6 +4,7 @@ import * as TabsComponents from "fumadocs-ui/components/tabs";
 import { Callout } from "fumadocs-ui/components/callout";
 
 import { Mermaid } from "@/components/mdx/mermaid";
+import { Objection } from "@/components/mdx/objection";
 import { Principle } from "@/components/mdx/principle";
 
 export function getMDXComponents(components?: MDXComponents): MDXComponents {
@@ -11,6 +12,7 @@ export function getMDXComponents(components?: MDXComponents): MDXComponents {
     ...defaultMdxComponents,
     Callout,
     Mermaid,
+    Objection,
     Principle,
     ...TabsComponents,
     ...components,

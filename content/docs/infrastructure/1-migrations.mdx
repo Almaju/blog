@@ -235,16 +235,16 @@ On a fresh database, skip `migrate.sql` entirely and bootstrap directly from `sc
 
 **Multiple independent deployment targets.** If different customers run different schema versions and need to jump from N to N+5 without intermediate steps, you need an upgrade matrix. The two-file pattern doesn't help you there.
 
-## FAQ
+## "Actually..."
 
-**Q: What if two developers change the schema at the same time?**
+<Objection>What if two developers change the schema at the same time?</Objection>
 
-A: Same as merge conflicts in code. Both `schema.sql` and `migrate.sql` will conflict. Merge the schema changes, rewrite `migrate.sql` to handle both transformations as one operation. It's actually easier than two numbered migration files that both increment the same version counter.
+Same as merge conflicts in code. Both `schema.sql` and `migrate.sql` will conflict. Merge the schema changes, rewrite `migrate.sql` to handle both transformations as one operation. It's actually easier than two numbered migration files that both increment the same version counter.
 
-**Q: What about rollbacks?**
+<Objection>What about rollbacks?</Objection>
 
-A: Write a `rollback.sql` alongside `migrate.sql` if you need it. The two-file pattern doesn't prevent rollbacks, it just doesn't force them. In practice, rolling forward with a fix is faster than rolling back, especially for data-destroying migrations like dropping columns. That's painful regardless of your migration strategy.
+Write a `rollback.sql` alongside `migrate.sql` if you need it. The two-file pattern doesn't prevent rollbacks, it just doesn't force them. In practice, rolling forward with a fix is faster than rolling back, especially for data-destroying migrations like dropping columns. That's painful regardless of your migration strategy.
 
-**Q: Doesn't `migrate.sql` become stale after deployment?**
+<Objection>Doesn't `migrate.sql` become stale after deployment?</Objection>
 
-A: Yes, and that's fine. Once applied everywhere, `migrate.sql` is just documentation until the next schema change overwrites it. The full migration history is in git for anyone who needs it.
+Yes, and that's fine. Once applied everywhere, `migrate.sql` is just documentation until the next schema change overwrites it. The full migration history is in git for anyone who needs it.

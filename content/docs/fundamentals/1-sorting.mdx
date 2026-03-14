@@ -528,11 +528,11 @@ reorder_modules = true
 
 When the formatter handles it, you don't have to think. That's the goal.
 
-## FAQ
+## "Actually..."
 
-**Q: Doesn't alphabetical ordering hide semantic relationships?**
+<Objection>Doesn't alphabetical ordering hide semantic relationships?</Objection>
 
-A: If semantic relationships matter, make them explicit in your architecture, not in your field ordering. Use types, modules, and clear naming. Don't rely on spatial proximity to convey meaning.
+If semantic relationships matter, make them explicit in your architecture, not in your field ordering. Use types, modules, and clear naming. Don't rely on spatial proximity to convey meaning.
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
@@ -591,9 +591,9 @@ struct User {
 </Tab>
 </Tabs>
 
-**Q: What about function parameters that have a natural order?**
+<Objection>What about function parameters that have a natural order?</Objection>
 
-A: Natural order for function parameters is fine because calling conventions matter:
+Natural order for function parameters is fine because calling conventions matter:
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
@@ -618,18 +618,18 @@ fn create_user(name: String, email: String, role: String) -> User {
 </Tab>
 </Tabs>
 
-**Q: Our codebase is already inconsistent. Do we refactor everything?**
+<Objection>Our codebase is already inconsistent. Do we refactor everything?</Objection>
 
-A: No. Apply alphabetical ordering:
+No. Apply alphabetical ordering:
 - To all new code going forward
 - To any file you're already modifying
 - When it takes < 5 minutes to fix
 
 Don't create churn. But establish the convention and migrate gradually.
 
-**Q: What about imports? Sometimes I group by source (stdlib, external, internal).**
+<Objection>What about imports? Sometimes I group by source (stdlib, external, internal).</Objection>
 
-A: That's a documented exception. Many style guides do this:
+That's a documented exception. Many style guides do this:
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">

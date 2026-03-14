@@ -957,25 +957,25 @@ fn parse_api_response(
 </Tab>
 </Tabs>
 
-## FAQ
+## "Actually..."
 
-**Q: Isn't this verbose?**
+<Objection>Isn't this verbose?</Objection>
 
 Initially, yes. But you write the newtype once. Then you use it everywhere, catching bugs at compile time instead of runtime. The verbosity pays for itself immediately.
 
-**Q: What about primitive obsession?**
+<Objection>What about primitive obsession?</Objection>
 
 This *is* the cure for primitive obsession. The refactoring is: find `string`/`number` → ask "what does this represent?" → create a newtype.
 
-**Q: How granular should I go?**
+<Objection>How granular should I go?</Objection>
 
 If two values have different meanings or constraints, they should be different types. If they're interchangeable, they can be the same type.
 
-**Q: What about performance?**
+<Objection>What about performance?</Objection>
 
 Zero-cost in Rust (newtype pattern compiles to the same as the underlying type). Near-zero in TypeScript (JavaScript runtime doesn't care about types). Measure if you're concerned, but premature optimization loses.
 
-**Q: Do I really need a type for *everything*?**
+<Objection>Do I really need a type for *everything*?</Objection>
 
 Not everything. Use newtypes for:
 - Values with constraints (positive numbers, valid emails)

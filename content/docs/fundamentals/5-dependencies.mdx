@@ -809,13 +809,13 @@ If you're building a plugin system where users provide implementations at runtim
 
 If you have A depends on B depends on A, you have an architecture problem, not a dependency injection problem. Break the cycle by introducing an interface or event bus.
 
-## FAQ
+## "Actually..."
 
-**Q: Doesn't passing everything through constructors get unwieldy?**
+<Objection>Doesn't passing everything through constructors get unwieldy?</Objection>
 
 If a constructor needs 10+ parameters, that's a code smell. Your class is doing too much. Split it.
 
-**Q: What about interface-based dependency injection?**
+<Objection>What about interface-based dependency injection?</Objection>
 
 Useful in statically-typed languages for testing:
 
@@ -849,7 +849,7 @@ struct UserService<D: Database> {
 
 But you don't need a framework for this. Just use interfaces/traits directly.
 
-**Q: How do I handle optional dependencies?**
+<Objection>How do I handle optional dependencies?</Objection>
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
@@ -897,7 +897,7 @@ impl UserService {
 </Tab>
 </Tabs>
 
-**Q: What about factory patterns?**
+<Objection>What about factory patterns?</Objection>
 
 Factories are fine for creating complex objects. But the factory itself should be injected:
 

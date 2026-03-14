@@ -484,17 +484,17 @@ If you're writing a tight inner loop and error checking adds measurable overhead
 
 But measure first. Modern compilers optimize Result-based code very well.
 
-## FAQ
+## "Actually..."
 
-**Q: Doesn't this make the code more verbose?**
+<Objection>Doesn't this make the code more verbose?</Objection>
 
 Yes, by about 15%. But that verbosity is **honest**. Every error case is visible. Every recovery strategy is explicit. You can't accidentally ignore a failure. The verbosity is the point.
 
-**Q: What about helper methods like `.unwrap()` or `!`?**
+<Objection>What about helper methods like `.unwrap()` or `!`?</Objection>
 
 Use them in examples and tests. Never in production code. If you find yourself writing `.unwrap()`, ask: "What if this actually fails?" Then handle it.
 
-**Q: How do I convert legacy throwing code?**
+<Objection>How do I convert legacy throwing code?</Objection>
 
 Incrementally:
 
@@ -512,7 +512,7 @@ graph LR
 
 Start at the edges. Wrap third-party libraries. Convert new code to Results. Gradually refactor inward. You don't need to boil the ocean.
 
-**Q: What about async/await with Results?**
+<Objection>What about async/await with Results?</Objection>
 
 Works perfectly. Async functions can return `Promise<Result<T, E>>`:
 
@@ -548,7 +548,7 @@ async fn fetch_user(id: &str) -> Result<User, ApiError> {
 </Tab>
 </Tabs>
 
-**Q: How granular should error types be?**
+<Objection>How granular should error types be?</Objection>
 
 Granular enough to make different decisions. If two errors require identical handling, they can be the same type. If they require different recovery strategies, split them.
 
