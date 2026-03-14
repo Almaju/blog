@@ -5,7 +5,7 @@ import {
   DocsPage,
   DocsTitle,
 } from "fumadocs-ui/page";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { getMDXComponents } from "@/mdx-components";
 import type { Metadata } from "next";
 import { createRelativeLink } from "fumadocs-ui/mdx";
@@ -14,10 +14,6 @@ import { AIPromptDialog } from "@/components/ai-prompt-dialog";
 export default async function Page(props: PageProps<"/docs/[[...slug]]">) {
   const params = await props.params;
   const slug = params.slug ?? [];
-  if (slug.length === 1 && slug[0] === "fundamentals")
-    redirect("/docs/fundamentals/1-sorting");
-  if (slug.length === 1 && slug[0] === "infrastructure")
-    redirect("/docs/infrastructure/1-migrations");
 
   const page = source.getPage(slug);
   if (!page) notFound();

@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useId, useState } from "react";
+import { Suspense, use, useEffect, useId, useState } from "react";
 import { useTheme } from "next-themes";
 
 export function Mermaid({ chart }: { chart: string }) {
@@ -10,8 +10,12 @@ export function Mermaid({ chart }: { chart: string }) {
     setMounted(true);
   }, []);
 
-  if (!mounted) return;
-  return <MermaidContent chart={chart} />;
+  if (!mounted) return null;
+  return (
+    <Suspense fallback={null}>
+      <MermaidContent chart={chart} />
+    </Suspense>
+  );
 }
 
 const cache = new Map<string, Promise<unknown>>();

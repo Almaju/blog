@@ -8,11 +8,11 @@ export default function Layout({ children }: LayoutProps<"/">) {
       links={[
         ...baseOptions().links!,
         {
-          url: "/docs/fundamentals",
+          url: "/docs/fundamentals/1-sorting",
           text: "Fundamentals",
         },
         {
-          url: "/docs/infrastructure",
+          url: "/docs/infrastructure/1-migrations",
           text: "Infrastructure",
         },
         {
