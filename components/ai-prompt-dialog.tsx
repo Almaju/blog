@@ -4,7 +4,7 @@ import { useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Check, Copy, X } from "lucide-react";
 
-const PROMPT = `# Code Principles from The Unwrap
+const PROMPT_COMMON = `# Code Principles from The Unwrap
 
 Apply these principles when writing code.
 
@@ -30,7 +30,9 @@ Obsess over data structures before algorithms. A well-designed struct makes the 
 - Prefer flat, explicit structures over nested, implicit ones
 - If your struct needs a comment to be understood, it's probably wrong
 
-## Error Handling
+`;
+
+const PROMPT_TYPESCRIPT = PROMPT_COMMON + `## Error Handling
 
 Return errors as typed values. No throws. No panics.
 
@@ -73,11 +75,101 @@ class User {
 If a dependency is not in the function signature, it should not exist.
 `.trim();
 
+const PROMPT_RUST = PROMPT_COMMON + `## Error Handling
+
+Return errors as typed values. No panics in business logic.
+
+Every function that can fail returns \`Result<T, E>\`. The caller is forced to handle the error. The type signature tells the truth.
+
+\`\`\`rust
+// Bad
+fn get_user(id: UserId) -> User { // lies — can panic
+    panic!("not found");
+}
+
+// Good
+fn get_user(id: UserId) -> Result<User, AppError> {
+    // caller must handle both cases
+}
+\`\`\`
+
+\`unwrap()\` and \`expect()\` are only acceptable in tests or truly unrecoverable situations.
+
+## Dependencies
+
+Pass dependencies explicitly through function or constructor parameters. Never use global state or lazy statics for business logic.
+
+\`\`\`rust
+// Bad — hidden dependency
+impl UserService {
+    fn save(&self, user: User) {
+        DATABASE.lock().unwrap().save(user); // where did this come from?
+    }
+}
+
+// Good — explicit dependency
+impl User {
+    fn save(&self, store: &Store) -> Result<(), DatabaseError> {
+        store.persist(self)
+    }
+}
+\`\`\`
+
+If a dependency is not in the function signature, it should not exist.
+`.trim();
+
+const PROMPT_PYTHON = PROMPT_COMMON + `## Error Handling
+
+Handle errors explicitly. Do not let exceptions silently propagate through business logic.
+
+Catch exceptions at system boundaries. Inside the domain, use explicit return types (e.g. with the \`returns\` library) or sentinel values that force the caller to deal with failure.
+
+\`\`\`python
+# Bad — exception silently propagates
+def get_user(user_id: UserId) -> User:
+    return db.query(user_id)  # raises if not found — caller has no idea
+
+# Good — failure is visible in the signature
+def get_user(user_id: UserId) -> User | None:
+    result = db.query(user_id)
+    return result if result else None
+\`\`\`
+
+Exceptions are only acceptable at system boundaries (unrecoverable errors, framework entry points).
+
+## Dependencies
+
+Pass dependencies explicitly through function or \`__init__\` parameters. Never reach for module-level globals or service locators in business logic.
+
+\`\`\`python
+# Bad — hidden dependency
+class UserService:
+    def save(self, user: User) -> None:
+        Database.get_instance().save(user)  # where did this come from?
+
+# Good — explicit dependency
+class User:
+    def save(self, store: Store) -> None:
+        store.persist(self)
+\`\`\`
+
+If a dependency is not in the function signature, it should not exist.
+`.trim();
+
+const PROMPTS = {
+  TypeScript: PROMPT_TYPESCRIPT,
+  Rust: PROMPT_RUST,
+  Python: PROMPT_PYTHON,
+} as const;
+
+type Language = keyof typeof PROMPTS;
+
 export function AIPromptDialog() {
   const [copied, setCopied] = useState(false);
+  const [language, setLanguage] = useState<Language>("TypeScript");
 
   function copy() {
-    navigator.clipboard.writeText(PROMPT);
+    navigator.clipboard.writeText(PROMPTS[language]);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
@@ -124,9 +216,26 @@ export function AIPromptDialog() {
               </Dialog.Close>
             </div>
           </div>
+
+          <div className="flex gap-1 px-5 pt-3">
+            {(Object.keys(PROMPTS) as Language[]).map((lang) => (
+              <button
+                key={lang}
+                onClick={() => setLanguage(lang)}
+                className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                  language === lang
+                    ? "bg-white/20 text-white"
+                    : "text-white/50 hover:text-white/80 hover:bg-white/10"
+                }`}
+              >
+                {lang}
+              </button>
+            ))}
+          </div>
+
           <div className="flex-1 overflow-auto p-4">
             <pre className="h-full p-5 text-xs leading-relaxed font-mono whitespace-pre-wrap bg-[#1e1e2e] text-[#cdd6f4] rounded-lg">
-              {PROMPT}
+              {PROMPTS[language]}
             </pre>
           </div>
         </Dialog.Content>

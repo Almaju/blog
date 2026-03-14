@@ -15,6 +15,10 @@ export default function Layout({ children }: LayoutProps<"/">) {
           url: "/docs/infrastructure",
           text: "Infrastructure",
         },
+        {
+          url: "/about",
+          text: "About",
+        },
       ]}
     >
       {children}
