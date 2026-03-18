@@ -12,6 +12,10 @@ export default function Layout({ children }: LayoutProps<"/">) {
           text: "Fundamentals",
         },
         {
+          url: "/docs/frontend/1-state",
+          text: "Frontend",
+        },
+        {
           url: "/docs/infrastructure/1-migrations",
           text: "Infrastructure",
         },
