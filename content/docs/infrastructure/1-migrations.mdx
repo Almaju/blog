@@ -3,6 +3,8 @@ title: Database Migrations
 description: Commit two files per schema change. Git already holds the previous version.
 ---
 
+<Callout type="warn">This article is a work in progress. The two-file pattern is solid. The startup migration script is a direction I'm exploring, not a proven recipe. Use your judgment.</Callout>
+
 <Principle>Commit two files per schema change: `schema.sql` (what your database should look like now) and `migrate.sql` (how to get there from the last version). Git holds the rest.</Principle>
 
 Your CI validates the migration by creating a database from the previous commit's `schema.sql`, applying `migrate.sql`, and diffing the result against the current `schema.sql`. If they match, the migration is correct.
