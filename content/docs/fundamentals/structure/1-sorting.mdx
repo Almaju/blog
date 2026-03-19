@@ -5,17 +5,17 @@ description: Sort your code alphabetically unless you have a documented reason n
 
 <Principle>Sort your code alphabetically unless you have a documented reason not to.</Principle>
 
-Object properties, table columns, function parameters, class methods, React component props, import statements, enum values. Everything that forms a list.
+Right. Where does `phoneNumber` go.
 
-If you're staring at your code wondering where to put this field, the answer is alphabetical order. Not "important stuff first". Not "related things together". Alphabetical. Every time.
+I know how this goes. You have a system. The system lives in your head. "Primary key first, metadata last, important business fields in the middle." Very logical. Completely invisible to the next person. And in six months, completely invisible to you too.
 
-## Why This Works
+You're going to have this conversation. Or you're going to have the version where you don't have it out loud and instead just watch the struct grow into sediment. Either way, you're paying.
 
-### Everyone's Logic Is Different
+Sort alphabetically. Every time. Object properties, table columns, function parameters, class methods, React component props, import statements, enum values. Everything that forms a list.
 
-You think your ordering is logical. It isn't. It's *your* logic, which is invisible to everyone else, and will be invisible to you in four months.
+## The Crime Scene
 
-Watch this happen in real time:
+Developer A builds a struct:
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
@@ -48,9 +48,9 @@ struct User {
 </Tab>
 </Tabs>
 
-Developer A is proud of this structure. ID first (primary key!), timestamps last (metadata!), business fields in the middle. There's a logic. A logic that lives entirely inside Developer A's head. Developer A will explain it at length in the code review. Nobody asked.
+Developer A is proud of this. There's a logic. The logic lives entirely inside Developer A's head. Developer A will explain it in the code review. Nobody asked.
 
-Then Developer B adds a field:
+Developer B adds a field:
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
@@ -64,7 +64,7 @@ interface User {
   createdAt: Date;
   updatedAt: Date;
   lastLoginAt?: Date;
-  phoneNumber?: string;  // Where does this go? 🤷
+  phoneNumber?: string;  // Where does this go?
 }
 ```
 </Tab>
@@ -79,15 +79,15 @@ struct User {
     created_at: DateTime,
     updated_at: DateTime,
     last_login_at: Option<DateTime>,
-    phone_number: Option<String>,  // Where does this go? 🤷
+    phone_number: Option<String>,  // Where does this go?
 }
 ```
 </Tab>
 </Tabs>
 
-Developer B doesn't know your system. Is `phoneNumber` important like `email`, or optional metadata like `lastLoginAt`? No idea. So they stick it at the bottom because that's the safest political move: don't disturb the existing order, don't own the decision, don't make enemies.
+Developer B doesn't know the system. Is `phoneNumber` important like `email`, or optional metadata like `lastLoginAt`? No idea. So they tack it at the bottom. Safe move. Don't disturb the order. Don't own the decision. Don't make enemies.
 
-Six months later, you have this:
+Six months later:
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
@@ -132,10 +132,13 @@ struct User {
 </Tab>
 </Tabs>
 
-Your original logic is dead. The structure is now geological: layers of sediment with no guiding principle. Finding anything requires scanning the whole thing top to bottom, every time. You built a list you have to read like a novel. Nobody asked for a novel. Nobody wants to read your novel.
+Developer A's original logic is dead. What you have now is geological: layers of sediment, each layer representing a developer who didn't want to fight about it. Finding anything means scanning top to bottom, every time. You built a list you have to read like a novel.
 
-### The Decision Tree of Chaos
+Nobody asked for a novel.
 
+## Every Developer's Logic Conflicts With Every Other Developer's Logic
+
+<Excalidraw>
 ```mermaid
 graph TD
     A[Need to add a field] --> B{Where does it go?}
@@ -151,13 +154,13 @@ graph TD
     G --> H[Structure is pure sediment]
 
     class H red
+    class E red
 ```
+</Excalidraw>
 
-Every developer makes micro-decisions based on their mental model. Those models never align, and nobody documents them. The result: entropy baked into your data structures before a single business rule is written.
+Six developers. Six mental models. Zero documentation. The result is entropy baked into your data structures before a single business rule is written.
 
-### Alphabetical Order Needs No Explanation
-
-Now watch this:
+Now watch what happens with alphabetical order:
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
@@ -202,19 +205,15 @@ struct User {
 </Tab>
 </Tabs>
 
-Developer A, B, C, and Z all know where to add fields. Developer A doesn't like that `id` isn't first? **Too bad**. Developer B thinks timestamps should be together? **Doesn't matter**.
+Developer A doesn't like that `id` isn't first. Too bad. Developer B thinks timestamps should be together. Doesn't matter. Developer C just joined last week and has never seen this codebase. They know exactly where `phoneNumber` goes.
 
-There's one rule. It requires zero documentation. It needs no explanation. It's culturally neutral.
+One rule. Zero documentation required. Culturally neutral. When you need to find `phoneNumber`, you don't scan: you binary search mentally. P comes after N, before R. Found it.
 
-When you need to find `phoneNumber`, you don't scan: you binary search mentally. "P comes after N, before R." Found it.
+No politics. No ego. No archaeology.
 
-Without a clear convention, developers play it safe. They append. They don't refactor. They preserve the chaos because touching it feels presumptuous. With alphabetical ordering, placement is objective. You're not imposing your taste. You're following the alphabet. No politics, no ego, no archaeology.
+## When This Doesn't Apply
 
-## When Not To Sort Alphabetically
-
-You can break this rule. But you must **document the exception**.
-
-### Acceptable Exceptions (If Written Down)
+You can break the rule. You must document the exception.
 
 **Class methods with visibility grouping:**
 
@@ -267,16 +266,33 @@ impl UserRepository {
 </Tab>
 </Tabs>
 
-This exception is fine **because it's documented at the top of the class**. Within each section, still alphabetical.
+Fine. It's documented at the top of the class. Within each section, still alphabetical. The exception is written down; it isn't just living in someone's head waiting to leave.
 
-### SQL Constraints Exception
+**Semantically inseparable methods:**
+
+```typescript
+/**
+ * Method ordering convention:
+ * distanceTo and isNear are grouped: isNear is a direct wrapper.
+ * Neither makes sense without the other.
+ */
+class GPSCoordinates {
+  distanceTo(other: GPSCoordinates): Distance { /* ... */ }
+  isNear(other: GPSCoordinates, radius: Distance): boolean {
+    return this.distanceTo(other).lessThan(radius);
+  }
+}
+```
+
+Fine. Document it. One sentence says why they're together. If it takes more than one sentence, you've got a separate type trying to escape.
+
+**SQL primary keys:**
 
 ```sql
 /**
  * Column ordering convention:
- * 1. Columns alphabetical EXCEPT
- * 2. Primary key declared first for readability
- * 3. Foreign keys with their constraints grouped
+ * 1. Primary key declared first for readability
+ * 2. All other columns alphabetical
  */
 CREATE TABLE orders (
   id UUID PRIMARY KEY,  -- Exception: PK first
@@ -290,9 +306,7 @@ CREATE TABLE orders (
 );
 ```
 
-### Domain-Specific Ordering
-
-If you're building a React component where prop order affects render performance (rare), or a database where column order affects storage (very rare), document it:
+**Measured performance exceptions (rare):**
 
 ```typescript
 /**
@@ -309,33 +323,30 @@ interface ChartProps {
 }
 ```
 
-The key: **The exception must be written somewhere**. Preferably as a comment in the code, or as an automated linting rule.
+The key: the exception is written somewhere. In the code, or as a lint rule that enforces it automatically. If it's only in your head, it's not an exception. It's just chaos with better intentions.
 
-## The Implementation Hierarchy
+## Automate It and Stop Thinking About It
 
+<Excalidraw>
 ```mermaid
 graph TD
-    A[Ordering Decision] --> B{Is there a formatter rule?}
+    A[Ordering Decision] --> B{Formatter rule?}
     B -->|Yes| C[Use formatter]
-    B -->|No| D{Is there documentation?}
+    B -->|No| D{Documented convention?}
 
-    D -->|Yes| E[Follow documented convention]
+    D -->|Yes| E[Follow it]
     D -->|No| F[Sort alphabetically]
 
     C --> G[Consistent code]
     E --> G
     F --> G
 
+    class C green
     class G green
 ```
+</Excalidraw>
 
-The best solution is automation:
-
-1. **Formatter/Linter rules** (best): Configure ESLint, Prettier, rustfmt, or your language's formatter to enforce alphabetical ordering
-2. **Documented conventions** (good): Write it down in code comments or team docs
-3. **Alphabetical by default** (minimum): When in doubt, alphabet
-
-### Automate When Possible
+The best outcome is you stop making this decision at all:
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
@@ -363,18 +374,18 @@ reorder_modules = true
 </Tab>
 </Tabs>
 
-When the formatter handles it, you don't have to think. That's the goal.
+When the formatter handles it, you don't think about it. That's the goal. A rule nobody has to enforce is a rule nobody has to argue about.
 
 ## "Actually..."
 
 <Objection>Doesn't alphabetical ordering hide semantic relationships?</Objection>
 
-If semantic relationships matter, make them explicit in your architecture, not in your field ordering. Use types, modules, and clear naming. Don't rely on spatial proximity to carry meaning — proximity is invisible to the compiler and invisible to anyone who didn't write the code.
+If semantic relationships matter, make them explicit in your architecture. Use types, modules, and clear naming. Don't rely on spatial proximity to carry meaning — proximity is invisible to the compiler and invisible to anyone who didn't write the code.
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
 ```typescript
-// ❌ Trying to show relationships through ordering
+// Trying to show relationships through ordering
 interface User {
   firstName: string;
   lastName: string;   // "These go together!"
@@ -382,7 +393,7 @@ interface User {
   phone: string;      // "These go together!"
 }
 
-// ✅ Make relationships explicit through types
+// Make relationships explicit through types
 interface UserName {
   first: string;
   last: string;
@@ -394,14 +405,14 @@ interface UserContact {
 }
 
 interface User {
-  contact: UserContact;  // Alphabetical, relationship explicit
+  contact: UserContact;  // Alphabetical. Relationship explicit.
   name: UserName;
 }
 ```
 </Tab>
 <Tab value="Rust">
 ```rust
-// ❌ Trying to show relationships through ordering
+// Trying to show relationships through ordering
 struct User {
     first_name: String,
     last_name: String,   // "These go together!"
@@ -409,7 +420,7 @@ struct User {
     phone: String,       // "These go together!"
 }
 
-// ✅ Make relationships explicit through types
+// Make relationships explicit through types
 struct UserName {
     first: String,
     last: String,
@@ -421,7 +432,7 @@ struct UserContact {
 }
 
 struct User {
-    contact: UserContact,  // Alphabetical, relationship explicit
+    contact: UserContact,  // Alphabetical. Relationship explicit.
     name: UserName,
 }
 ```
@@ -430,40 +441,26 @@ struct User {
 
 <Objection>What about function parameters that have a natural order?</Objection>
 
-Natural order for function parameters is fine because calling conventions matter:
+Function parameters are fine to order by calling convention. `createUser(name, email, role)` makes sense; `createUser(email, name, role)` is genuinely worse to call. That's a real exception.
 
-<Tabs items={['TypeScript', 'Rust']}>
-<Tab value="TypeScript">
-```typescript
-// ✅ Correct: Parameters follow usage logic
-function createUser(name: string, email: string, role: string) {
-  // name is required first, alphabetical would be weird here
-}
-
-// But the function itself in a class? Alphabetical with other functions.
-```
-</Tab>
-<Tab value="Rust">
-```rust
-// ✅ Correct: Parameters follow usage logic
-fn create_user(name: String, email: String, role: String) -> User {
-    // name is required first, alphabetical would be weird here
-}
-
-// But the function itself in an impl block? Alphabetical with other functions.
-```
-</Tab>
-</Tabs>
+The function itself in a class? Alphabetical with everything else.
 
 <Objection>Our codebase is already inconsistent. Do we refactor everything?</Objection>
 
-No. Apply alphabetical ordering:
-- To all new code going forward
-- To any file you're already modifying
-- When it takes < 5 minutes to fix
+No. Apply alphabetical ordering to all new code going forward. To any file you're already modifying. When sorting takes under five minutes, do it. Don't create churn for its own sake. Establish the convention and migrate on contact.
 
-Don't create churn. Establish the convention and migrate gradually. The mess didn't accumulate in a day; don't expect to fix it in one either.
+The mess didn't accumulate in a day. You're not fixing it in one either.
 
-<Objection>What about imports? Sometimes I group by source (stdlib, external, internal).</Objection>
+<Objection>What about imports? Sometimes I group by source — stdlib, external, internal.</Objection>
 
-That's a documented exception, and it's in most style guides. Grouping by source is fine. Within each group: alphabetical. You're not breaking the rule, you're applying it one layer down.
+That's a documented exception, and it's in most style guides. Grouping by source is fine. Within each group: alphabetical. You're not breaking the rule. You're applying it one layer down.
+
+---
+
+Here's what no sorting convention actually costs you, because someone always asks.
+
+Code reviews arguing about where a field goes: ten minutes each, twenty reviews a month, they add up. Merge conflicts because two developers added fields to "logical" positions that happened to be the same line. Time spent scanning a fifteen-field struct looking for `isActive`. The new hire who doesn't know the unspoken system and puts everything at the bottom because it's safer.
+
+None of these are catastrophic. They're just friction. Constant, low-grade friction that accumulates across every struct, every interface, every PR, for as long as the codebase lives.
+
+Sort alphabetically. Write down the exceptions. Go do something that matters.

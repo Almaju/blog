@@ -7,15 +7,9 @@ description: Commit two files per schema change. Git already holds the previous 
 
 <Principle>Commit two files per schema change: `schema.sql` (what your database should look like now) and `migrate.sql` (how to get there from the last version). Git holds the rest.</Principle>
 
-Your CI validates the migration by creating a database from the previous commit's `schema.sql`, applying `migrate.sql`, and diffing the result against the current `schema.sql`. If they match, the migration is correct.
+## The Archaeology Problem
 
-## How Migrations Break Down
-
-When you start a project, incremental migrations feel right. You're modeling your database evolution explicitly, the way it's taught. You use sqlx, Flyway, Alembic, pick your tool. You write `V1__create_users.sql`, then `V2__add_email_column.sql`, then `V3__drop_email_add_contact.sql`.
-
-It works. Until it doesn't.
-
-The problem surfaces early when the schema is still moving fast. Every design mistake becomes a permanent artifact. You end up with a shit ton of files like:
+You inherited a codebase. The previous team was diligent. They wrote a migration for everything.
 
 ```
 migrations/
@@ -30,8 +24,9 @@ migrations/
   V043__fix_typo_in_column_name.sql
 ```
 
-Nobody on the team knows what the database actually looks like without running all 43 migrations in sequence. Your CI runs every single one on every build. Half of them are `create this` immediately followed by `drop this and try again`. Pure noise. Zero production value.
+Nobody on the team knows what the database actually looks like without running all 43 migrations in sequence. Your CI runs every single one on every build. Half of them are "create this" immediately followed by "drop this and try again." Pure noise. Zero production value.
 
+<Excalidraw>
 ```mermaid
 graph LR
     V001 --> V002 --> V003 --> V004 --> V005 --> V006
@@ -41,8 +36,9 @@ graph LR
     class V005 red
     class V006 orange
 ```
+</Excalidraw>
 
-The accumulated history doesn't describe your schema. It describes every mistake you made along the way. Congratulations, you've version controlled your own confusion.
+The accumulated history doesn't describe your schema. It describes every mistake the team made along the way, in chronological order, forever. `V043__fix_typo_in_column_name.sql` is someone's embarrassment, preserved in amber. You've version controlled your own confusion.
 
 ## Git Doesn't Work This Way
 
@@ -60,7 +56,7 @@ It isn't.
 
 ### Version-Numbered Schemas
 
-My first attempt: schema versioning. Assign an integer to each schema state. When the application starts, read the current database version and run migrations until it reaches the latest.
+First try: schema versioning. Assign an integer to each schema state. When the application starts, read the current database version and run migrations until it reaches the latest.
 
 ```
 db/
@@ -68,7 +64,7 @@ db/
   migrate_v2_to_v3.sql  ← how to upgrade
 ```
 
-This solved the readability problem. I could open `schema_v3.sql` and immediately understand the current database structure. Clean.
+This solved the readability problem. Open `schema_v3.sql` and immediately understand the current database structure. Clean.
 
 But one problem remained: how do you test `migrate_v2_to_v3.sql`?
 
@@ -85,10 +81,11 @@ db/
   migrate_v2_to_v3.sql
 ```
 
-Now I'm back to accumulating files. Not migration files, schema files. I traded one archaeology problem for another.
+Back to accumulating files. Not migration files, schema files. I traded one archaeology problem for another.
 
-I knew I could delete old schema files when I was done with them. But when am I done with them? When every production database has passed through that version? How do I track that?
+I knew I could delete old schema files when I was done with them. But when am I done with them? When every production database has passed through that version? How do I track that? I had no idea.
 
+<Excalidraw>
 ```mermaid
 graph TD
     A[Problem: too many migration files] --> B[Solution: version-numbered schemas]
@@ -100,15 +97,17 @@ graph TD
 
     class G red
 ```
+</Excalidraw>
 
 Going in circles.
 
 ## The Obvious Thing
 
-If I commit `schema.sql` with every change, then the previous commit's `schema.sql` *is* my `from.sql`. It already exists. It's in git. It's safe. It's the ground truth.
+If I commit `schema.sql` with every change, then the previous commit's `schema.sql` is my `from.sql`. It already exists. It's in git. It's safe. It's the ground truth.
 
 I don't need to keep old schema versions in the repository. Git already stores them.
 
+<Excalidraw>
 ```mermaid
 graph LR
     C1["commit A\nschema.sql (v1)\nmigrate.sql"] -->|git| C2["commit B\nschema.sql (v2)\nmigrate.sql"]
@@ -123,6 +122,7 @@ graph LR
         C3
     end
 ```
+</Excalidraw>
 
 Every schema version ever committed is retrievable via `git checkout`. You never need to explicitly keep `schema_v1.sql` because `git show HEAD~2:db/schema.sql` gives it to you instantly.
 
@@ -162,6 +162,7 @@ migra postgresql://localhost/migration_test_before \
       postgresql://localhost/migration_test_desired
 ```
 
+<Excalidraw>
 ```mermaid
 graph TD
     A["git show HEAD~1:db/schema.sql"] --> B[Create DB from previous schema]
@@ -176,6 +177,7 @@ graph TD
     class H green
     class I red
 ```
+</Excalidraw>
 
 If the schemas match, the migration is correct by definition.
 
@@ -252,6 +254,7 @@ ALTER TABLE users DROP COLUMN phone;
 
 The data move lives in the same commit that caused it.
 
+<Excalidraw>
 ```mermaid
 graph TD
     A["rename email to contact"] --> B["migra generates"]
@@ -261,6 +264,7 @@ graph TD
     class D red
     class E green
 ```
+</Excalidraw>
 
 ### Startup Migration
 
@@ -303,6 +307,7 @@ psql -c "INSERT INTO deployment_state (deployed_commit) VALUES ('$(git rev-parse
 
 The `-- db/migrate.sql` filter skips commits that didn't touch the schema. Feature commits, bug fixes, doc changes: ignored.
 
+<Excalidraw>
 ```mermaid
 graph TD
     A[App starts] --> B{deployment_state empty?}
@@ -314,8 +319,17 @@ graph TD
     class C green
     class F green
 ```
+</Excalidraw>
 
-If migration fails, the app never starts. The deploy fails fast before serving a single request against a broken schema.
+If the migration fails, the app never starts. The deploy fails fast before serving a single request against a broken schema.
+
+## The Receipt
+
+Here's what 43 migration files actually costs you.
+
+Every new developer runs all 43 to set up a local database. CI runs all 43 on every build, including the ones that exist only to undo the mistakes in the ones before them. You spend 10 minutes reading migration files to figure out what the database looks like today, because `schema.sql` doesn't exist and there's no other way to know. `V043__fix_typo_in_column_name.sql` is a public record of someone's bad day, sitting in your repository forever, doing nothing except slowing down your test suite.
+
+The two-file pattern costs you nothing at setup. Every schema change is two files. That's it. A new developer clones the repo, reads `schema.sql`, and knows exactly what the database looks like. CI validates the migration in one script. The history lives in git where it belongs.
 
 ## When This Doesn't Apply
 

@@ -5,6 +5,25 @@ description: Dependencies should be obvious from reading the type signatures.
 
 <Principle>Every function and class should declare exactly what it needs. No singletons. No magic injection. If it's not in the signature, it shouldn't exist.</Principle>
 
+## Friday at 4pm
+
+You deployed at noon. Everything was fine. Then at 4pm your phone starts going off.
+
+The error is "failed to resolve dependency for UserService." Stack trace points into the DI container. Nothing useful. You dig through registration files. You stare at the decorator. Then you find it:
+
+```typescript
+container.register("LOGER", Logger); // ← one letter off
+```
+
+Not `"LOGGER"`. `"LOGER"`. The container accepted it without complaint on startup. It always does. It resolves dependencies at runtime, when someone actually calls the service, so there was no error at boot. The error waited until a specific code path triggered it. On a Friday. In production. Four hours after you deployed and stopped watching the dashboards.
+
+The fix took thirty seconds. The search took two hours.
+
+This is the DI framework tax. Not hypothetical. Documented. Filed as a post-mortem with a "mitigations: linting rules" section that nobody followed up on.
+
+The alternative is boring: put your dependencies in the type signature. The compiler catches `LOGER` in zero milliseconds.
+
+<Excalidraw>
 ```mermaid
 graph TD
     A[Your Code] --> B{Dependency Type?}
@@ -27,12 +46,13 @@ graph TD
     class H red
     class I red
 ```
+</Excalidraw>
 
-If you can't tell what a class depends on by looking at its constructor, your architecture is lying to you. Every lie it tells becomes a bug you find at runtime instead of compile time. Usually in production. Usually at the worst possible moment.
-
-## Why Singletons Are Poison
+## Singletons Are Poison
 
 ### They hide dependencies
+
+Look at this class and tell me what it needs to run:
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
@@ -56,7 +76,6 @@ class UserService {
   ) {}
 
   async getUser(id: string) {
-    // Dependencies are explicit
     const user = await this.db.query("...");
     this.logger.info("Fetched user", { id });
     return user;
@@ -104,6 +123,10 @@ impl UserService {
 ```
 </Tab>
 </Tabs>
+
+The first version looks simple. Zero constructor parameters. You can spin it up anywhere with `new UserService()` and it just works. Until you need to test it, or move it, or change what database it talks to. Then you find out it secretly depends on two global singletons you can't swap without touching every test in the suite.
+
+The second version has two constructor parameters. Exactly as complex as it actually is.
 
 ### They make testing a nightmare
 
@@ -157,8 +180,13 @@ async fn test_creates_user() {
 </Tab>
 </Tabs>
 
-### They create coupling you don't see
+The sin is specific. Mutable state. Shared between tests. Invisible from the type signatures that depend on it.
 
+`export const logger = new Logger(...)` is not this. The import is at the top of the file. It doesn't change between tests. You never mock it because there's nothing to swap. [The Three Kinds of Dependencies](#the-three-kinds-of-dependencies) covers those.
+
+### They create coupling you can't see
+
+<Excalidraw>
 ```mermaid
 graph TD
     A[UserService] -.->|Hidden| S[Singleton]
@@ -170,17 +198,42 @@ graph TD
     S --> F[Logger]
     S --> G[Config]
 
-    H[All classes coupled through singleton]
+    H[All classes coupled]
 
     style S red
     style H red
 ```
+</Excalidraw>
 
-Change the singleton's interface? Now you're grepping the entire codebase hoping you got them all. The compiler can't help because the dependency is invisible. Invisible dependencies are the cockroaches of software architecture: everywhere, impossible to count, surviving every refactor.
+Change the singleton's interface and you're grepping the entire codebase hoping you got them all. The compiler can't help because the dependency is invisible. Invisible dependencies are the cockroaches of software architecture: everywhere, impossible to count, surviving every refactor.
 
-## Why Dependency Injection Frameworks Are Worse
+## Why DI Frameworks Are Worse
 
-### They trade compile-time safety for runtime magic
+At least singletons are honest. They're in the code. You can grep for them.
+
+DI frameworks give you runtime magic: string-keyed registrations, decorator-based injection, containers resolving graphs at startup. The framework accepted `"LOGER"` silently. The framework always accepts typos silently. That's the design. Everything is checked at runtime, when users are using the thing, not at compile time, when you could actually do something about it.
+
+<Excalidraw>
+```mermaid
+graph TD
+    A[DI Container] --> B[???]
+    B --> C[???]
+    C --> D[???]
+    D --> E[Fails at runtime]
+
+    F[Explicit constructor] --> G[Database]
+    F --> H[Logger]
+    F --> I[ConfigService]
+    I --> J[FileSystem]
+
+    style E red
+    style F green
+    style G green
+    style H green
+    style I green
+    style J green
+```
+</Excalidraw>
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
@@ -195,7 +248,7 @@ class UserService {
 }
 
 // Somewhere in main.ts
-container.register("DATABASE", Database); // Typo? Runtime error
+container.register("DATABASE", Database);
 container.register("LOGER", Logger); // ← Typo! Fails at runtime. On a Friday.
 
 // Explicit dependencies - errors at compile time
@@ -215,7 +268,7 @@ const userService = new UserService(db, logger);
 </Tab>
 <Tab value="Rust">
 ```rust
-// Rust doesn't really have DI frameworks because...
+// Rust doesn't really have DI frameworks because
 // the type system makes them unnecessary
 
 struct UserService {
@@ -229,7 +282,7 @@ impl UserService {
     }
 }
 
-// Main.rs
+// main.rs
 let db = Database::new(&config.db_url)?;
 let logger = Logger::new(config.log_level);
 let user_service = UserService::new(db, logger);
@@ -238,90 +291,13 @@ let user_service = UserService::new(db, logger);
 </Tab>
 </Tabs>
 
-### They obscure the dependency graph
-
-With DI frameworks, you can't see what depends on what by reading the code. You configure strings in one file, inject by annotation in another, and hope the container resolves it correctly at runtime. When it doesn't, you get a message that says something failed to wire, no indication of where, and a Friday afternoon disappears. You find the bug: you typed `"DATABSE"`. The framework accepted it silently. Of course it did.
-
-```mermaid
-graph TD
-    A[DI Container] --> B[???]
-    B --> C[???]
-    C --> D[???]
-    D --> E[Fails at runtime with a cryptic message]
-
-    F[Explicit constructor] --> G[Database]
-    F --> H[Logger]
-    F --> I[ConfigService]
-    I --> J[FileSystem]
-
-    style E red
-    style F green
-    style G green
-    style H green
-    style I green
-    style J green
-```
-
-With explicit dependencies, the graph is in the code:
-
-<Tabs items={['TypeScript', 'Rust']}>
-<Tab value="TypeScript">
-```typescript
-// I can see the entire dependency graph by reading constructors
-class App {
-  constructor(
-    private config: Config,
-    private logger: Logger,
-  ) {}
-}
-
-class UserService {
-  constructor(
-    private db: Database,
-    private logger: Logger,
-  ) {}
-}
-
-class Database {
-  constructor(
-    private config: Config,
-    private logger: Logger,
-  ) {}
-}
-
-// Graph: App → Config, Logger
-//        UserService → Database, Logger
-//        Database → Config, Logger
-// No surprises. No runtime resolution. Just types.
-```
-</Tab>
-<Tab value="Rust">
-```rust
-struct App {
-    config: Config,
-    logger: Logger,
-}
-
-struct UserService {
-    db: Database,
-    logger: Logger,
-}
-
-struct Database {
-    config: Config,
-    logger: Logger,
-}
-
-// The dependency graph is literally in the struct definitions
-// cargo build tells you if something's wrong
-```
-</Tab>
-</Tabs>
+With explicit dependencies the graph is in the code. You can read it. You can trace it. You can break it and get a compiler error instead of a Friday incident.
 
 ## The Three Kinds of Dependencies
 
-Not all dependencies are equal. Treat them differently:
+Not all dependencies are the same. Treat them differently.
 
+<Excalidraw>
 ```mermaid
 graph TD
     A[Dependencies] --> B[Global/Infrastructure]
@@ -356,10 +332,11 @@ graph TD
     class D2 orange
     class D3 orange
 ```
+</Excalidraw>
 
 ### Global/Infrastructure: Static or Module-level
 
-These are genuinely global. Everyone needs them. They never change behavior between tests.
+These are genuinely global. Everyone needs them. They don't change behavior between tests. If you're never mocking it, you don't need to inject it.
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
@@ -378,10 +355,7 @@ import { logger } from "./logger";
 import { config } from "./config";
 
 class UserService {
-  constructor(private db: Database) {
-    // Logger and config are imported, not injected
-    // They're infrastructure, not business dependencies
-  }
+  constructor(private db: Database) {}
 
   async getUser(id: string) {
     logger.info("Fetching user", { id });
@@ -429,11 +403,11 @@ impl UserService {
 </Tab>
 </Tabs>
 
-**Key insight**: If you're never mocking it in tests, it doesn't need to be injected.
+If you're never mocking it in tests, it doesn't need to be injected.
 
 ### Instance Lifecycle: Constructor Parameters
 
-These dependencies live as long as the instance lives. They define the instance's capabilities.
+These dependencies live as long as the instance lives. They define what the instance can do. Put them in the constructor.
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
@@ -456,7 +430,6 @@ class ChatClient {
   }
 }
 
-// The WebSocket is fundamental to this instance's identity
 const ws = new WebSocket(chatUrl);
 const client = new ChatClient(ws, currentUser.id);
 ```
@@ -488,7 +461,7 @@ impl ChatClient {
 
 ### Operation-specific: Method Parameters
 
-These dependencies are only needed for specific operations. Pass them when you need them.
+These are only needed for a specific operation. Pass them when you call the method. Don't store them on the instance.
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
@@ -500,12 +473,10 @@ class User {
     public email: string,
   ) {}
 
-  // Store is only needed for saving, not for existing
   async save(store: Store): Promise<Result<void, SaveError>> {
     return store.saveUser(this);
   }
 
-  // Transaction is only needed for this operation
   async updateEmail(
     newEmail: string,
     store: Store,
@@ -519,7 +490,6 @@ class User {
   }
 }
 
-// Usage
 const user = new User("1", "Alice", "alice@example.com");
 user.updateEmail("newalice@example.com", store, transaction);
 // ↑ Clear that this operation needs a store and transaction
@@ -534,7 +504,6 @@ struct User {
 }
 
 impl User {
-    // Store is passed per operation
     async fn save(&self, store: &Store) -> Result<(), SaveError> {
         store.save_user(self).await
     }
@@ -554,10 +523,13 @@ impl User {
 </Tab>
 </Tabs>
 
-## Methods Belong to Domain Objects, Not Dependencies
+## Domain Logic Belongs in Domain Objects
 
-Your domain logic should live in domain objects, not in infrastructure. The `Store` is not a brain. It's a filing cabinet.
+The Store is not a brain. It's a filing cabinet.
 
+This gets violated constantly. Someone needs to save a user, so validation goes in `store.saveUser`. Then someone needs to save an order, so different validation goes in `store.saveOrder`. Six months later the Store has more business logic than your actual domain objects and you're adding a `banned_at` check in three different places because nobody knows where the canonical rule lives.
+
+<Excalidraw>
 ```mermaid
 graph LR
     A[❌ Bad: Store owns logic] --> B[store.saveUser]
@@ -571,6 +543,7 @@ graph LR
     style A red
     style E green
 ```
+</Excalidraw>
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
@@ -578,18 +551,15 @@ graph LR
 // ❌ Bad: Logic in the Store
 class Store {
   async saveUser(user: User): Promise<Result<void, SaveError>> {
-    // Validate user
     if (!user.email.includes("@")) {
       return { type: "Err", err: { type: "InvalidEmail" } };
     }
 
-    // Check duplicates
     const existing = await this.db.query("SELECT * FROM users WHERE email = ?", user.email);
     if (existing) {
       return { type: "Err", err: { type: "DuplicateEmail" } };
     }
 
-    // Save
     await this.db.query("INSERT INTO users ...", user);
     return { type: "Ok", data: undefined };
   }
@@ -617,25 +587,21 @@ class User {
   }
 
   async save(store: Store): Promise<Result<void, SaveError>> {
-    // User knows how to validate itself
     const validation = this.validate();
     if (validation.type === "Err") {
       return { type: "Err", err: { type: "ValidationFailed", inner: validation.err } };
     }
 
-    // User knows its duplicate constraints
     const duplicate = await store.findUserByEmail(this.email);
     if (duplicate.type === "Ok") {
       return { type: "Err", err: { type: "DuplicateEmail", email: this.email } };
     }
 
-    // Store only handles the mechanics of storage
     return store.persistUser(this);
   }
 }
 
 class Store {
-  // Store is just mechanical persistence
   async findUserByEmail(email: string): Promise<Result<User, NotFoundError>> {
     // Simple query, no business logic
   }
@@ -651,17 +617,14 @@ class Store {
 // ❌ Bad: Logic in the Store
 impl Store {
     async fn save_user(&self, user: &User) -> Result<(), SaveError> {
-        // Validation
         if !user.email.contains("@") {
             return Err(SaveError::InvalidEmail);
         }
 
-        // Duplicate checking
         if self.db.find_by_email(&user.email).await.is_ok() {
             return Err(SaveError::DuplicateEmail);
         }
 
-        // Persistence
         self.db.insert_user(user).await
     }
 }
@@ -676,16 +639,13 @@ impl User {
     }
 
     async fn save(&self, store: &Store) -> Result<(), SaveError> {
-        // User validates itself
         self.validate()
             .map_err(SaveError::ValidationFailed)?;
 
-        // User checks its constraints
         if store.find_user_by_email(&self.email).await.is_ok() {
             return Err(SaveError::DuplicateEmail(self.email.clone()));
         }
 
-        // Store handles persistence mechanics
         store.persist_user(self).await
     }
 }
@@ -703,12 +663,15 @@ impl Store {
 </Tab>
 </Tabs>
 
-This keeps your domain logic centralized and your infrastructure dumb. The `Store` reads and writes. It doesn't know what makes a `User` valid any more than a filing cabinet knows what makes a contract legal. Business rules live in business objects.
+The Store reads and writes. It doesn't know what makes a User valid any more than a filing cabinet knows what makes a contract legal. Business rules live in business objects.
+
+This means the object's own invariants. Not every rule that touches it. If `User` ends up with twenty methods, that's not a dependency problem. That's a [struct problem](/docs/fundamentals/3-structs).
 
 ## Practical Wiring
 
-How do you actually construct all these dependencies?
+All dependencies get constructed in one place. One file. That's it.
 
+<Excalidraw>
 ```mermaid
 graph TD
     A[main.ts / main.rs] --> B[Create Infrastructure]
@@ -725,36 +688,31 @@ graph TD
     H --> K[PaymentService db]
 
     A --> L[Create App]
-    L --> M[App userService, orderService, paymentService]
+    L --> M[App all services]
 
     M --> N[Run]
 ```
+</Excalidraw>
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
 ```typescript
 // main.ts - The only place where wiring happens
 async function main() {
-  // Infrastructure (global)
   const config = loadConfig();
-  // Logger is imported statically, already initialized
 
-  // Persistence layer
   const db = new Database(config.dbUrl);
   await db.connect();
 
   const cache = new Cache(config.redisUrl);
   await cache.connect();
 
-  // Services (explicit dependency graph)
   const userService = new UserService(db, cache);
   const orderService = new OrderService(db);
   const paymentService = new PaymentService(db, config.stripeKey);
 
-  // Application
   const app = new App(userService, orderService, paymentService);
 
-  // Start
   await app.listen(config.port);
 }
 
@@ -769,23 +727,17 @@ main().catch(err => {
 // main.rs
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    // Infrastructure
     let config = load_config()?;
-    // Logger is in a static, already initialized
 
-    // Persistence
     let db = Database::connect(&config.db_url).await?;
     let cache = Cache::connect(&config.redis_url).await?;
 
-    // Services
     let user_service = UserService::new(db.clone(), cache.clone());
     let order_service = OrderService::new(db.clone());
     let payment_service = PaymentService::new(db.clone(), config.stripe_key);
 
-    // Application
     let app = App::new(user_service, order_service, payment_service);
 
-    // Start
     app.listen(config.port).await?;
     Ok(())
 }
@@ -793,31 +745,25 @@ async fn main() -> Result<(), Box<dyn Error>> {
 </Tab>
 </Tabs>
 
-All wiring in one place. The dependency graph is explicit. No magic. No runtime resolution. Just construction.
+No magic. No runtime resolution. If it doesn't compile, you fix it before deploying.
 
 ## When This Doesn't Apply
 
-### Frameworks with their own lifecycle
+**Frameworks with their own lifecycle.** NestJS, Next.js, Axum — they have opinions about wiring. Work within their constraints. Keep individual classes explicit even if the framework handles top-level construction.
 
-If you're using a framework like NestJS, Next.js, or Axum, they have opinions about dependency management. Work within their constraints, but keep dependencies explicit where you can.
+**Plugin systems.** If you're building an extension point where third parties provide implementations at runtime, dynamic resolution is the point. That's the exception, not a reason to DI-framework your whole app.
 
-### Plugins and extensions
-
-If you're building a plugin system where users provide implementations at runtime, you might need dynamic resolution. But this is the exception, not the rule.
-
-### Truly circular dependencies
-
-If you have A depends on B depends on A, you have an architecture problem, not a dependency injection problem. Break the cycle by introducing an interface or event bus.
+**Circular dependencies.** If A depends on B depends on A, you have an architecture problem. The answer is introducing an interface or an event bus, not a DI container that resolves cycles through magic. The cycle is telling you something.
 
 ## "Actually..."
 
 <Objection>Doesn't passing everything through constructors get unwieldy?</Objection>
 
-If a constructor needs 10+ parameters, that's a code smell. Your class is doing too much. Split it. A constructor with ten parameters is a class that hasn't been broken up yet.
+Ten constructor parameters means you have a class that hasn't been split yet. That's the smell. Not the explicit dependencies — the fact that one class is doing ten things. Split it. The constructor then tells you exactly what each piece needs, which is the point.
 
 <Objection>What about interface-based dependency injection?</Objection>
 
-Useful in statically-typed languages for testing:
+Yes. Use it. No framework required.
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
@@ -847,9 +793,11 @@ struct UserService<D: Database> {
 </Tab>
 </Tabs>
 
-But you don't need a framework for this. Just use interfaces/traits directly.
+Interfaces for swappability. Explicit constructors for wiring. No container, no string keys, no decorators needed.
 
 <Objection>How do I handle optional dependencies?</Objection>
+
+Put them in the type.
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
@@ -857,17 +805,15 @@ But you don't need a framework for this. Just use interfaces/traits directly.
 class UserService {
   constructor(
     private db: Database,
-    private cache?: Cache, // Optional
+    private cache?: Cache,
   ) {}
 
   async getUser(id: string): Promise<Result<User, GetUserError>> {
-    // Try cache first if available
     if (this.cache) {
       const cached = await this.cache.get(id);
       if (cached.type === "Ok") return cached;
     }
 
-    // Fall back to database
     return this.db.findUser(id);
   }
 }
@@ -882,14 +828,12 @@ struct UserService {
 
 impl UserService {
     async fn get_user(&self, id: &str) -> Result<User, GetUserError> {
-        // Try cache if available
         if let Some(cache) = &self.cache {
             if let Ok(user) = cache.get(id).await {
                 return Ok(user);
             }
         }
 
-        // Fall back to database
         self.db.find_user(id).await
     }
 }
@@ -897,49 +841,18 @@ impl UserService {
 </Tab>
 </Tabs>
 
-<Objection>What about factory patterns?</Objection>
+The type says it's optional. The compiler enforces that you handle both cases. No magic needed.
 
-Factories are fine for creating complex objects. But the factory itself should be injected:
+---
 
-<Tabs items={['TypeScript', 'Rust']}>
-<Tab value="TypeScript">
-```typescript
-class ConnectionFactory {
-  constructor(private config: Config) {}
+You didn't follow this and got a DI framework. Here's what you bought:
 
-  createConnection(): WebSocket {
-    return new WebSocket(this.config.wsUrl, {
-      timeout: this.config.timeout,
-      retry: this.config.retryStrategy,
-    });
-  }
-}
+Runtime errors where you should have compile-time errors. The `"LOGER"` incident is not bad luck. It's the expected behavior of a system that defers checking until someone runs the code. That someone is eventually a user, on a Friday, when you're not watching.
 
-class ChatClient {
-  constructor(private connectionFactory: ConnectionFactory) {}
+Flaky tests from singleton state leaking between parallel runs. Not always. Just sometimes. Just enough that you spend the first twenty minutes of every debugging session wondering if it's real or a test artifact.
 
-  async connect(): Promise<Result<void, ConnectError>> {
-    const ws = this.connectionFactory.createConnection();
-    // ...
-  }
-}
-```
-</Tab>
-<Tab value="Rust">
-```rust
-struct ConnectionFactory {
-    config: Config,
-}
+A dependency graph that lives in the container's memory, not in your codebase. You can't grep it. You can't read it. You find out what depends on what by breaking something and watching what fails.
 
-impl ConnectionFactory {
-    fn create_connection(&self) -> WebSocket {
-        WebSocket::new(&self.config.ws_url)
-            .with_timeout(self.config.timeout)
-            .with_retry(self.config.retry_strategy)
-    }
-}
-```
-</Tab>
-</Tabs>
+Put dependencies in the type signature. Wire everything in main. The graph is then right there in the code, checked at compile time, readable by anyone who joins the project in six months and has never seen your container configuration.
 
 If it's not in the type signature, it's hiding from you. And things that hide from you bite you in production.

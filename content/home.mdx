@@ -1,0 +1,122 @@
+import Link from "next/link";
+import { Mermaid } from "@/components/mdx/mermaid";
+
+## The Problem
+
+Programming is drowning in its own confusion.
+
+You open a codebase. You see a `UserService` that doesn't serve anything. A `CustomerController` that doesn't control. A `PaymentUseCase` that... what does a use case even *do*? The developer who wrote this will tell you they're following Domain-Driven Design. They're not. They've cargo-culted the vocabulary without understanding the grammar.
+
+Meanwhile, AI is making this worse. Much worse.
+
+LLMs generate code that *works* but reads like a stream of consciousness from a very competent, very drunk programmer. It solves the problem. It passes the tests. It's also architectural vomit: inconsistent naming, mixed abstraction levels, no guiding principles. Just tokens predicting tokens.
+
+**Here's the uncomfortable truth**: Most human-written code isn't much better.
+
+## The Real Disease
+
+<Mermaid
+  chart={`graph TD
+    A[No clear principles] --> B[Framework A]
+    A --> C[Framework B]
+    B --> D[New names. Same mess.]
+    C --> D
+    D --> A
+    class A orange
+    class D red`}
+/>
+
+Programming suffers from a naming crisis. Not the "naming things is hard" platitude: everyone knows that. The real problem: **there are too many ways to do the same thing, and we can't agree on what to call any of them**.
+
+Want to organize business logic? Pick from Service Layer, Use Case, Application Service, Handler, Manager, or Coordinator. They might all do the same thing in your codebase. Or not. There's no standard.
+
+They won't.
+
+**The names are a symptom, not a cure**. When you need a word like "Manager" or "Service" to explain what your code does, you're admitting you don't know what your code does.
+
+## The DDD Delusion
+
+"But we use Domain-Driven Design!"
+
+Do you? Or did you read the blue book, nod sagely at the word "Aggregate," and then create a `CustomerAggregate` class that's actually just an anemic data container with 47 setter methods?
+
+Domain-Driven Design has good ideas. The problem is everyone claims to do it, and almost nobody does it right. They learn the vocabulary (Entities, Value Objects, Repositories, Aggregates) and stop there, before the understanding. They think DDD means "put your database tables in a folder called 'domain'."
+
+It doesn't.
+
+The result: codebases full of domain-ish words pointing at architectural mush.
+
+## Fuck the Trade-offs
+
+Ask any senior engineer a technical question. You know what you'll get.
+
+"It depends."
+
+Should I sort my methods? *It depends.* Should I use exceptions or typed errors? *It depends.* Should I pass dependencies explicitly? *It depends.*
+
+<Mermaid
+  chart={`graph TD
+    A[Technical question] --> B[It depends]
+    B --> C[Nothing to push against]
+    A --> D[Here is a principle]
+    D --> E[With explicit exceptions]
+    E --> F[You can reason about it]
+    class B red
+    class C red
+    class D green
+    class F green`}
+/>
+
+This is not wisdom. It's cowardice dressed up as nuance.
+
+Yes, every problem has context. No, that doesn't mean all solutions are equal. In 99% of cases there is a better approach, and the reason nobody says it out loud is they're scared of being wrong.
+
+The framing is also broken. The choice is never just A or B. It never was. "Should I use a Service or a Use Case?" is the wrong question. The right question is what this code actually does, and whether the name tells the truth. That has an answer.
+
+This blog has opinions. They will be stated as facts. If the context of your problem makes them wrong, you'll know why, because the principle is explicit enough to reason about. "It depends" gives you nothing to push against.
+
+## Why This Matters More Now
+
+AI is a code-generation tsunami. In three years, most boilerplate will be LLM-generated. This is good: boilerplate is waste. But here's what won't be automated:
+
+**Knowing what to ask for.**
+
+<Mermaid
+  chart={`graph LR
+    A[Developer Intent] --> B[AI Generation]
+    B --> C[Code]
+    A2[Unclear Intent] --> B2[AI Generation]
+    B2 --> C2[Vomit Code]
+    class A green
+    class C green
+    class A2 orange
+    class C2 red`}
+/>
+
+If you can't articulate what you want clearly, AI will give you working garbage. The better AI gets at generating code, the more critical your architectural clarity becomes. You need principles, not just syntax.
+
+You need craftsmanship.
+
+## What This Is
+
+A knowledge garden for programming craftsmanship. Each article documents a principle: a theorem about how to write better code.
+
+The format:
+1. **The Principle**: What you should do
+2. **The Demonstration**: Why it works, with evidence
+3. **The Counterarguments**: When it doesn't apply
+
+Not a tutorial site. If you need to know what a closure is, you're in the wrong place. Every article is opinionated. Claims will be made. Evidence will be shown. No hedging with "arguably" or "it depends." Everything depends. We'll say things anyway.
+
+These articles exist because someone needs to call bullshit on "best practices" that aren't. Because AI makes beautiful code more valuable, not less. Because you've opened a codebase and thought "what the fuck is a `RequestProcessor`?"
+
+**Programming is a craft.** The tools get better. The fundamentals don't. Beautiful code is still beautiful. Vomit code is still vomit.
+
+<div className="pt-4">
+  <Link
+    href="/docs/fundamentals/1-sorting"
+    className="no-underline inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold transition-colors text-base"
+  >
+    Read the first article →
+  </Link>
+</div>

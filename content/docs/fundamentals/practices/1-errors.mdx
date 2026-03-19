@@ -5,11 +5,12 @@ description: Treat errors as data, not exceptions.
 
 <Principle>Handle errors like any other value in your program. Every operation that can fail returns a discriminated union. No throws. No panics. Just honest return values that force you to confront reality.</Principle>
 
+<Excalidraw>
 ```mermaid
 graph LR
     A[Function Call] --> B{Result}
-    B -->|Success| C[Data: type Ok]
-    B -->|Failure| D[Error: type Err]
+    B -->|Success| C[Ok]
+    B -->|Failure| D[Err]
     C --> E[Continue Processing]
     D --> F[Handle Explicitly]
 
@@ -18,12 +19,17 @@ graph LR
     class E green
     class F yellow
 ```
+</Excalidraw>
 
 ## Your Type Signatures Are Lying to You
 
-### Exception-based error handling lies to you
+It's 3am. Production alert. Something is swallowing errors and returning garbage to users, but you can't tell which layer is responsible. You open the call stack. There are six functions between the user's request and the response. You check the first one. Looks fine. The second. Also fine. The third has three nested try-catch blocks, two of which catch `Error` and return `null`. The fourth calls the third. The fifth calls the fourth. You've been reading for forty minutes and you still don't know which exception was swallowed or when.
 
-When you write `getUserById(id)`, what does the type signature promise? In most languages: "I return a User." That's a lie. It might throw `NetworkError`, `ValidationError`, `NotFoundError`, or a dozen others depending on which developer touched it last and how tired they were. The type system doesn't track this. Your IDE can't help you. The only way to know is to read every line of the implementation and all its callees. You're not writing software at this point. You're doing archaeology through someone else's optimism.
+You're not writing software at this point. You're doing archaeology through someone else's optimism.
+
+The problem started before the bug. It started when someone wrote `getUserById(id): User` and called it honest.
+
+When you write `getUserById(id)`, what does the type signature promise? A User. That's a lie. It might throw `NetworkError`, `ValidationError`, `NotFoundError`, or a dozen others depending on which developer touched it last and how tired they were. The type system doesn't track this. Your IDE can't help you. The only way to know is to read every line of the implementation and every callee it touches.
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
@@ -71,9 +77,9 @@ fn get_user_by_id(id: &str) -> Result<User, UserError> {
 </Tab>
 </Tabs>
 
-### Exceptions break composition
+## The Pyramid of Despair
 
-Try-catch blocks don't compose. You can't map over them. You can't chain them. You end up with nested try-catch pyramids where the innermost handler has no idea what the outer ones already caught. It's spaghetti with a stack trace attached. The person who wrote it called it "defensive programming" and is now at another company.
+Oh, here's something beautiful. Someone called this "defensive programming":
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
@@ -113,10 +119,17 @@ fn get_comments_for_user(id: &str) -> Result<Vec<Comment>, AppError> {
 </Tab>
 </Tabs>
 
-### Typed errors enable sophisticated recovery
+The person who wrote the pyramid is at another company now. The pyramid is still there. Nobody knows what any of the inner catch blocks were supposed to do because `catch (e)` with an empty comment doesn't tell you anything. You find out what they caught the day it stops catching it.
 
-When your errors are data, you can pattern match on them and implement precise recovery strategies:
+Try-catch blocks don't compose. You can't map over them. You can't chain them. Every nested level loses context. Every silent catch is a future 3am.
 
+Result types compose. You chain them. You map over them. Every failure case is visible in the return type, which means the compiler is your 3am backup.
+
+## Typed Errors Let You Make Decisions
+
+The real payoff isn't verbosity reduction. It's that typed errors let you respond to failure with precision instead of vibes.
+
+<Excalidraw>
 ```mermaid
 graph TD
     A[Operation Failed] --> B{Error Type?}
@@ -130,6 +143,7 @@ graph TD
     class E yellow
     class F yellow
 ```
+</Excalidraw>
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
@@ -140,83 +154,47 @@ type ApiError =
   | { type: "AuthError"; retryable: true; refreshToken: string }
   | { type: "RateLimitError"; retryable: true; retryAfter: number };
 
-async function fetchWithRecovery<T>(
-  fn: () => Promise<Result<T, ApiError>>,
-  maxRetries = 3
-): Promise<Result<T, ApiError>> {
-  let attempt = 0;
-
-  while (attempt < maxRetries) {
-    const result = await fn();
-
-    if (result.type === "Ok") return result;
-
-    // Pattern match on error type
-    switch (result.err.type) {
-      case "NetworkError":
-        await sleep(result.err.delay * Math.pow(2, attempt));
-        attempt++;
-        continue;
-
-      case "AuthError":
-        const refreshed = await refreshAuth(result.err.refreshToken);
-        if (refreshed.type === "Ok") {
-          attempt++; // Try again with new token
-          continue;
-        }
-        return refreshed; // Can't recover
-
-      case "RateLimitError":
-        await sleep(result.err.retryAfter * 1000);
-        attempt++;
-        continue;
-
-      case "ValidationError":
-        return result; // User needs to fix input
-    }
-  }
-
-  return { type: "Err", err: { type: "NetworkError", retryable: false, delay: 0 } };
+// Pattern match on the error. Make a real decision.
+switch (result.err.type) {
+  case "NetworkError":
+    await sleep(result.err.delay * Math.pow(2, attempt));
+    break;
+  case "AuthError":
+    await refreshAuth(result.err.refreshToken);
+    break;
+  case "RateLimitError":
+    await sleep(result.err.retryAfter * 1000);
+    break;
+  case "ValidationError":
+    return result; // User needs to fix their input. Not retryable.
 }
 ```
 </Tab>
 <Tab value="Rust">
 ```rust
-async fn fetch_with_recovery<T>(
-    f: impl Fn() -> BoxFuture<'static, Result<T, ApiError>>,
-    max_retries: u32,
-) -> Result<T, ApiError> {
-    let mut attempt = 0;
-
-    loop {
-        match f().await {
-            Ok(data) => return Ok(data),
-            Err(err) => match err {
-                ApiError::NetworkError { delay, .. } if attempt < max_retries => {
-                    sleep(Duration::from_millis(delay * 2_u64.pow(attempt))).await;
-                    attempt += 1;
-                }
-                ApiError::AuthError { refresh_token } if attempt < max_retries => {
-                    refresh_auth(&refresh_token).await?;
-                    attempt += 1;
-                }
-                ApiError::RateLimitError { retry_after } if attempt < max_retries => {
-                    sleep(Duration::from_secs(retry_after)).await;
-                    attempt += 1;
-                }
-                _ => return Err(err),
-            }
-        }
+match err {
+    ApiError::NetworkError { delay, .. } => {
+        sleep(Duration::from_millis(delay * 2_u64.pow(attempt))).await;
     }
+    ApiError::AuthError { refresh_token } => {
+        refresh_auth(&refresh_token).await?;
+    }
+    ApiError::RateLimitError { retry_after } => {
+        sleep(Duration::from_secs(retry_after)).await;
+    }
+    ApiError::ValidationError { .. } => return Err(err),
 }
 ```
 </Tab>
 </Tabs>
 
-### Build error taxonomies
+With exceptions, you catch `Error` and guess. With typed errors, you match the variant and act. The difference is whether your recovery logic is a strategy or a prayer.
 
-Not all errors are equal. Create a hierarchy:
+## Build an Error Taxonomy
 
+Not all errors deserve the same response. Three categories cover almost everything:
+
+<Excalidraw>
 ```mermaid
 graph TD
     A[AppError] --> B[UserError]
@@ -234,11 +212,11 @@ graph TD
     class F red
     class G orange
 ```
+</Excalidraw>
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
 ```typescript
-// Each category has different handling strategies
 type UserError = {
   category: "user";
   display: string; // Show to user
@@ -264,21 +242,16 @@ type AppError = UserError | SystemError | ExternalError;
 function handleError(error: AppError): void {
   switch (error.category) {
     case "user":
-      // Show specific message to user
       showToast(error.display, "error");
-      if (error.recoverable) {
-        enableRetry();
-      }
+      if (error.recoverable) enableRetry();
       break;
 
     case "system":
-      // Generic message to user, detailed alert to team
       showToast(error.display, "error");
       alertEngineering(error.alert, error.context);
       break;
 
     case "external":
-      // Retry logic for external services
       if (error.retryable) {
         scheduleRetry(error.service, error.retryAfter);
       } else {
@@ -296,25 +269,6 @@ enum AppError {
     User(UserError),
     System(SystemError),
     External(ExternalError),
-}
-
-#[derive(Debug)]
-struct UserError {
-    display: String,
-    recoverable: bool,
-}
-
-#[derive(Debug)]
-struct SystemError {
-    alert: String,
-    context: HashMap<String, String>,
-}
-
-#[derive(Debug)]
-struct ExternalError {
-    service: String,
-    retryable: bool,
-    retry_after: Option<Duration>,
 }
 
 fn handle_error(error: AppError) {
@@ -342,19 +296,15 @@ fn handle_error(error: AppError) {
 </Tab>
 </Tabs>
 
+UserError: the user did something wrong. Tell them what. SystemError: you did something wrong. Tell engineering. ExternalError: a third-party did something wrong. Retry or degrade gracefully. These three responses cover 95% of production failure.
+
 ## When to Actually Panic
 
-There's a 0.01% exception to this rule. Panic when:
+There is one case where throwing is correct: when the program cannot meaningfully continue.
 
-1. **Invariant violations that indicate programmer error**
-   - An index is out of bounds after you just checked the length
-   - A lock is poisoned when it should never be contested
-   - A config file is missing that's required for the program to exist
+Initialization failures. Missing config that the application requires to exist. Database connection on startup. Required environment variables. These are not recoverable at runtime. If the database isn't there when the app starts, returning a `Result` to whom, exactly?
 
-2. **Setup/initialization failures**
-   - Can't connect to database on startup (what would the program even do?)
-   - Required environment variables are missing
-   - Critical files can't be opened
+Invariant violations that indicate programmer error. An index out of bounds after you just checked the length. A state transition that should be impossible. A lock poisoned in a single-threaded context.
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
@@ -366,7 +316,7 @@ const db = await connectDatabase(config.dbUrl); // Throw if can't connect
 // NOT OK to throw
 function getUser(id: string): User {
   const user = db.query("SELECT * FROM users WHERE id = ?", id);
-  if (!user) throw new Error("User not found"); // NO! Return Result
+  if (!user) throw new Error("User not found"); // NO. Return Result.
 }
 
 // Correct
@@ -388,7 +338,7 @@ let db = connect_database(&config.db_url).expect("Cannot run without database");
 // NOT OK to panic
 fn get_user(id: &str) -> User {
     db.query("SELECT * FROM users WHERE id = ?", id)
-        .expect("User not found") // NO! Return Result
+        .expect("User not found") // NO. Return Result.
 }
 
 // Correct
@@ -400,27 +350,22 @@ fn get_user(id: &str) -> Result<User, NotFoundError> {
 </Tab>
 </Tabs>
 
-If you're reaching for `throw` or `panic!()` and it's not program initialization, you're wrong.
+If you're reaching for `throw` or `panic!()` and it's not program initialization or an invariant that proves programmer error, you're wrong.
 
 ## When This Doesn't Apply
 
 ### Third-party libraries
 
-If you're using a library that throws exceptions, you have two choices:
-
-1. **Wrap it immediately** at the boundary
-2. **Let it propagate** to a top-level error boundary
-
-Never let thrown exceptions leak into your business logic. Third-party exceptions are their problem. Wrap them at the door, give them a type you control, and proceed normally.
+If the library throws, wrap it at the boundary. One try-catch. Give it a type you control. Never let a third-party exception leak into your business logic.
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
 ```typescript
-// Wrap throwing libraries
+// Wrap throwing libraries at the door
 function safeFetch<T>(url: string): Result<T, NetworkError> {
   try {
-    const response = await fetch(url); // Might throw
-    const data = await response.json(); // Might throw
+    const response = await fetch(url);
+    const data = await response.json();
     return { type: "Ok", data };
   } catch (e) {
     return {
@@ -438,7 +383,6 @@ function safeFetch<T>(url: string): Result<T, NetworkError> {
 </Tab>
 <Tab value="Rust">
 ```rust
-// Rust libraries rarely panic, but if they do:
 fn safe_parse(s: &str) -> Result<Value, ParseError> {
     std::panic::catch_unwind(|| {
         some_panicking_parser(s)
@@ -449,30 +393,27 @@ fn safe_parse(s: &str) -> Result<Value, ParseError> {
 </Tab>
 </Tabs>
 
-### Performance-critical paths
+Third-party exceptions are their problem. Wrap them at the door.
 
-If you're writing a tight inner loop and error checking adds measurable overhead, consider:
+### Performance-critical inner loops
 
-1. Validate once at the boundary
-2. Use unsafe/unchecked operations inside
-3. Return to safe Result types at the exit
-
-But measure first. Modern compilers optimize Result-based code very well.
+If error checking adds measurable overhead in a tight inner loop: validate at the boundary, do unsafe operations inside, return to Result types at the exit. Measure first. Modern compilers optimize Result-based code well. You probably don't have this problem.
 
 ## "Actually..."
 
 <Objection>Doesn't this make the code more verbose?</Objection>
 
-Yes, by about 15%. But that verbosity is **honest**. Every error case is visible. Every recovery strategy is explicit. You can't accidentally ignore a failure. The verbosity is the point. Compare that 15% overhead to the 3am you spent debugging a silent exception that swallowed your error and returned `undefined`.
+Yes. About 15%. That verbosity is honest. Every error case is visible. Every recovery strategy is explicit. You cannot accidentally ignore a failure. Compare that 15% overhead to the 3am you spent tracing a silent exception that swallowed your error and returned `undefined`. The verbosity is the point.
 
 <Objection>What about helper methods like `.unwrap()` or `!`?</Objection>
 
-Use them in examples and tests. Never in production code. If you find yourself writing `.unwrap()`, ask: "What if this actually fails?" Then handle it. Every `.unwrap()` in production code is a ticking clock.
+Use them in examples and tests. Never in production code. Every `.unwrap()` in production is a bet that this particular call site will never fail. You are wrong about that bet more often than you think, and you find out at the worst possible time.
 
-<Objection>How do I convert legacy throwing code?</Objection>
+<Objection>How granular should error types be?</Objection>
 
-Incrementally:
+Granular enough to make different decisions. If two errors require identical handling, they're the same type. If they require different recovery strategies, split them.
 
+<Excalidraw>
 ```mermaid
 graph LR
     A[Throwing legacy code] --> B[Wrap at the boundary]
@@ -484,47 +425,14 @@ graph LR
     class C yellow
     class D green
 ```
+</Excalidraw>
 
-Start at the edges. Wrap third-party libraries. Write all new code with Results. Refactor inward when you touch legacy code anyway. You don't need to boil the ocean all at once.
+Converting legacy code: start at the edges. Wrap third-party libraries first. Write all new code with Results. Refactor inward when you touch legacy code anyway. You don't need to boil the ocean.
 
-<Objection>What about async/await with Results?</Objection>
+---
 
-Works perfectly. Async functions can return `Promise<Result<T, E>>`:
+Errors are not exceptional. They're expected. The network goes down. Users send garbage. Third-party APIs return 500s at 2am on a Sunday. The database hiccups. The disk fills up. Every operation that touches the outside world can fail, and most of them will, eventually, on the worst possible day.
 
-<Tabs items={['TypeScript', 'Rust']}>
-<Tab value="TypeScript">
-```typescript
-async function fetchUser(id: string): Promise<Result<User, ApiError>> {
-  const response = await safeFetch<User>(`/api/users/${id}`);
-  if (response.type === "Err") return response;
+The receipt for not doing this: one night you'll spend four hours reading nested catch blocks trying to find which one swallowed the error that caused the incident. You'll find a comment that says `// shouldn't happen`. It happened. The comment lied. You'll fix it by adding another catch block. The next person will spend five hours.
 
-  const validated = validateUser(response.data);
-  return validated;
-}
-
-// Chain them
-const result = await fetchUser("123")
-  .then(result => result.type === "Ok"
-    ? fetchUserPosts(result.data.id)
-    : Promise.resolve(result)
-  );
-```
-</Tab>
-<Tab value="Rust">
-```rust
-async fn fetch_user(id: &str) -> Result<User, ApiError> {
-    let response = safe_fetch(&format!("/api/users/{}", id)).await?;
-    let validated = validate_user(response)?;
-    Ok(validated)
-}
-
-// The ? operator works seamlessly with async
-```
-</Tab>
-</Tabs>
-
-<Objection>How granular should error types be?</Objection>
-
-Granular enough to make different decisions. If two errors require identical handling, they can be the same type. If they require different recovery strategies, split them.
-
-Errors are not exceptional. They're expected. The network goes down. Users send garbage. Third-party APIs return 500s at 2am. Treat failure as the default, not the surprise. Your type signatures should say so.
+Treat failure as the default. Your type signatures should say so.

@@ -4,6 +4,32 @@
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-serif), Georgia, serif;
+  font-optical-sizing: auto;
+}
+
+/* Use Newsreader for prose body — gives articles warmth and readability */
+.prose p,
+.prose li,
+.prose blockquote,
+.prose dt,
+.prose dd {
+  font-family: var(--font-prose), Georgia, serif;
+  font-size: 1.125rem;
+  line-height: 1.85;
+}
+
+.prose blockquote {
+  font-style: italic;
+}
+
+/* Slightly larger headings with tighter tracking for editorial feel */
+.prose h1 {
+  letter-spacing: -0.03em;
+}
+
+.prose h2,
+.prose h3 {
+  letter-spacing: -0.02em;
 }
 
 /* Disable the grid-template-columns transition that causes the sidebar

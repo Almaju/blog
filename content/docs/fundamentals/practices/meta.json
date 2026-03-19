@@ -1,0 +1,4 @@
+{
+  "title": "Practices",
+  "pages": ["1-errors", "2-dependencies", "3-comments", "4-testing", "5-method-ownership"]
+}

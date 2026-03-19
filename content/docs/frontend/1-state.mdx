@@ -11,23 +11,29 @@ React gave you `useState`, `useEffect`, `useCallback`, `useMemo`, and fifteen ot
 
 Now you have components that fetch data, handle auth, read from localStorage, call two different APIs, and manage form state. All at once. The hooks call each other. The effects trigger other effects. You added a `useRef` to break a cycle you don't fully understand. You call this "business logic". It isn't. It's spaghetti with a hook-shaped pasta.
 
-The symptoms are predictable:
+## The Crime Scene
 
-- **Flickering.** Something renders in state A, flashes through state B, settles on state C. Users see the flash. You can't reproduce it consistently. You add a loading flag and the flash moves somewhere else.
-- **Test hell.** You can't unit test this code. It lives inside React. So you write end-to-end tests. Cypress. Playwright. Your CI takes 40 minutes. Your laptop sounds like a jet engine. You're testing whether clicking a button correctly fetches something, and it takes 40 minutes to find out.
-- **Rerenders.** 40 rerenders for a simple page load. Something in localStorage triggers a context update which triggers a fetch which updates state which re-renders half the tree.
-- **Unpredictable interactions.** A legacy GraphQL API and a newer tRPC layer, both touching related objects. They update state through different paths. The UI reflects whichever one finished last. Good luck predicting what the user sees.
+I've watched this exact failure mode play out at two different companies. Different stacks, different teams, different amounts of engineering process theater. Same outcome: nobody could tell you what the app would look like after a sequence of user actions without running it. Nobody could write a test that didn't require a browser. Nobody could fix a bug without breaking two others.
 
-I've watched this exact failure mode play out in two different companies. Different stacks, same outcome: nobody could tell you what the app would look like after a sequence of user actions without running it. Nobody could write a test that didn't require a browser. Nobody could fix a bug without breaking two others.
+Here's what the symptoms look like up close.
+
+**Flickering.** Something renders in state A, flashes through state B, settles on state C. Users see the flash. You add a loading flag and the flash moves somewhere else. You file a ticket. You close the ticket. It comes back. You close it again. It is still there.
+
+**Test hell.** You cannot unit test this code. It lives inside React. So you write end-to-end tests. Cypress. Playwright. Your CI takes 40 minutes. Your laptop sounds like a jet engine. You are testing whether clicking a button correctly fetches something, and it takes 40 minutes to find out. The test is flaky. You re-run it. It passes. You ship. It fails in production.
+
+**Rerenders.** 40 rerenders for a simple page load. Something in localStorage triggers a context update which triggers a fetch which updates state which re-renders half the tree. You profile it in DevTools. You add a `useMemo`. The rerenders are now 38.
+
+**Unpredictable interactions.** A legacy GraphQL API and a newer tRPC layer, both touching related objects. They update state through different paths. The UI reflects whichever one finished last. Good luck predicting what the user sees. Good luck explaining it to the PM.
 
 ## The Problem Is Not React
 
 React is fine. The problem is putting your application logic inside it.
 
-React is a rendering library. It renders a tree of components. That is what it does well. When you put state machines, async flows, and business rules inside it, you're using a rendering library as an application framework. It fights you the whole way.
+React is a rendering library. It renders a tree of components. That is what it does well. When you put state machines, async flows, and business rules inside it, you are using a rendering library as an application framework. It fights you the whole way.
 
-The fix isn't a new framework. It's a boundary.
+The fix is not a new framework. It is a boundary.
 
+<Excalidraw>
 ```mermaid
 graph TD
     A[State Machine] -->|current state| B[React / Vue / Svelte]
@@ -35,14 +41,13 @@ graph TD
     A -->|pure function| C[Predictable UI]
     class C green
 ```
+</Excalidraw>
 
 Your state lives outside the UI. The UI reads it and emits events. The state machine decides what happens next. React is just the last mile.
 
 ## Explicit State
 
-Stop using booleans and nullable fields to represent application state. Use discriminated unions.
-
-Here's what most codebases look like:
+Oh, you want to see something beautiful? Here:
 
 <Tabs items={['TypeScript', 'Rust']}>
   <Tab value="TypeScript">
@@ -62,7 +67,9 @@ Here's what most codebases look like:
   </Tab>
 </Tabs>
 
-Three independent variables. Eight possible combinations. Only three are valid. The other five are bugs waiting to happen: `loading: true` with a non-null `user`. `error` set while `loading` is still true. You can't represent these invariants. You can only hope. And you will eventually stop hoping when one of those impossible states shows up in production.
+Three variables. Eight possible states. You intended three of them. The other five come free. No extra charge. A gift from boolean soup to your production environment: `loading: true` with a non-null `user`. `error` set while `loading` is still true. The null-null-null void where nothing is anything and the spinner never stops. You built a bug factory and named it `UserState`.
+
+You cannot represent these invariants. You can only hope. And you will eventually stop hoping when one of those impossible states shows up in production at a time that is inconvenient for everyone.
 
 Here's the same thing modeled correctly:
 
@@ -170,6 +177,7 @@ Real applications have multiple orthogonal state machines. Compose them.
 
 Your entire application fits in a single value. Serialize it, log it, replay it. When a bug report comes in, ask for the state snapshot. Reproduce it in a unit test. Fix it without opening a browser.
 
+<Excalidraw>
 ```mermaid
 graph TD
     A[AppState] --> B[AuthState]
@@ -179,10 +187,11 @@ graph TD
     C --> F["idle | loading | ready | error"]
     D --> F
 ```
+</Excalidraw>
 
 ## The UI Is the Shell
 
-Once your state is explicit, UI components become trivial. They take state as props, return markup, emit events. No fetching, no side effects, no business logic.
+Once your state is explicit, UI components become trivial. They take state as props, return markup, emit events. No fetching. No side effects. No business logic.
 
 ```typescript
 // No opinions about the world. Just renders what you hand it.
@@ -200,8 +209,9 @@ function Dashboard({ state }: { state: AppState }) {
 
 This component is testable without a browser. Pass a state object, assert on the output. It runs in 2ms.
 
-It's also Storybook-friendly. Want to show the loading state? Pass `{ status: 'loading' }`. Want the error state? Pass `{ status: 'error', error: new Error('timeout') }`. No mocking, no network, no auth setup. Every visual variant is a value.
+It is also Storybook-friendly. Want to show the loading state? Pass `{ status: 'loading' }`. Want the error state? Pass `{ status: 'error', error: new Error('timeout') }`. No mocking. No network. No auth setup. Every visual variant is a value.
 
+<Excalidraw>
 ```mermaid
 graph LR
     A["UserState.loading"] --> B[Spinner story]
@@ -211,6 +221,7 @@ graph LR
     class D green
     class F green
 ```
+</Excalidraw>
 
 ## The Implementation Doesn't Matter
 
@@ -255,13 +266,21 @@ The component knows nothing about how login works. It reads state, calls an acti
 
 **Purely server-rendered apps.** If your server handles all state and the client displays HTML, this is a non-problem. Lucky you.
 
+## The Receipt
+
+Here is what not doing this costs.
+
+40-minute CI pipelines because your logic lives inside components and components need a browser to test. A laptop that sounds like a jet engine to find out whether clicking a button fetches something correctly. Bugs you cannot reproduce without opening a browser and clicking in exactly the right order. Visual regressions caught in QA instead of tests. A codebase where nobody can confidently change a state variable without running the whole app to see what breaks.
+
+That is the bill. It arrives slowly, then all at once, usually the week before a deadline.
+
 ## "Actually..."
 
 <Objection>My app is too simple for this.</Objection>
 
 It isn't. If your app has a login button, you have auth state. If you fetch data, you have loading state. If anything can fail, you have error state. Every frontend app has state machines in it. You're already writing them, just badly, as boolean soup inside components.
 
-The cost of doing this right is low: a few types, logic moved out of hooks, a store wired up. Done in a day. The payoff is immediate: tests without a browser, components you can develop in isolation, bugs you can reproduce from a log. The cost of not doing it is 40-minute CI pipelines and a laptop that sounds like a jet engine.
+The cost of doing this right is low: a few types, logic moved out of hooks, a store wired up. Done in a day. The cost of not doing it is 40-minute CI pipelines and a laptop that sounds like a jet engine.
 
 <Objection>React Query / SWR already handles loading and error states for me.</Objection>
 
