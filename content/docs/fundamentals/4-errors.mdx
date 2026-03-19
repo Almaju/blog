@@ -12,7 +12,7 @@ graph LR
     B -->|Failure| D[Error: type Err]
     C --> E[Continue Processing]
     D --> F[Handle Explicitly]
-    
+
     class C green
     class D red
     class E green
@@ -23,7 +23,7 @@ graph LR
 
 ### Exception-based error handling lies to you
 
-When you write `getUserById(id)`, what does the type signature promise? In most languages: "I return a User." That's a lie. It might throw `NetworkError`, `ValidationError`, `NotFoundError`, or a dozen others depending on which developer touched it last. The type system doesn't track this. Your IDE can't help you. The only way to know is to read every line of the implementation and all its callees. You're not writing software at this point; you're doing archaeology.
+When you write `getUserById(id)`, what does the type signature promise? In most languages: "I return a User." That's a lie. It might throw `NetworkError`, `ValidationError`, `NotFoundError`, or a dozen others depending on which developer touched it last. The type system doesn't track this. Your IDE can't help you. The only way to know is to read every line of the implementation and all its callees. You're not writing software at this point; you're doing archaeology through someone else's optimism.
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
@@ -37,11 +37,11 @@ function getUserById(id: string): User {
 }
 
 // The Truth
-type Result<T, E> = 
+type Result<T, E> =
   | { type: "Ok"; data: T }
   | { type: "Err"; err: E };
 
-type UserError = 
+type UserError =
   | { type: "NetworkError"; message: string; retryable: true }
   | { type: "NotFoundError"; userId: string; retryable: false }
   | { type: "ValidationError"; field: string; retryable: false };
@@ -73,7 +73,7 @@ fn get_user_by_id(id: &str) -> Result<User, UserError> {
 
 ### Exceptions break composition
 
-Try-catch blocks don't compose. You can't map over them. You can't chain them. You end up with nested try-catch pyramids where the innermost handler has no idea what the outer ones already caught. It's spaghetti, but everyone pretends it's architecture. The person who wrote it called it "defensive programming" and is now at another company.
+Try-catch blocks don't compose. You can't map over them. You can't chain them. You end up with nested try-catch pyramids where the innermost handler has no idea what the outer ones already caught. It's spaghetti with a stack trace attached. The person who wrote it called it "defensive programming" and is now at another company.
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
@@ -134,7 +134,7 @@ graph TD
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
 ```typescript
-type ApiError = 
+type ApiError =
   | { type: "NetworkError"; retryable: true; delay: number }
   | { type: "ValidationError"; retryable: false; fields: Record<string, string> }
   | { type: "AuthError"; retryable: true; refreshToken: string }
@@ -145,19 +145,19 @@ async function fetchWithRecovery<T>(
   maxRetries = 3
 ): Promise<Result<T, ApiError>> {
   let attempt = 0;
-  
+
   while (attempt < maxRetries) {
     const result = await fn();
-    
+
     if (result.type === "Ok") return result;
-    
+
     // Pattern match on error type
     switch (result.err.type) {
       case "NetworkError":
         await sleep(result.err.delay * Math.pow(2, attempt));
         attempt++;
         continue;
-        
+
       case "AuthError":
         const refreshed = await refreshAuth(result.err.refreshToken);
         if (refreshed.type === "Ok") {
@@ -165,17 +165,17 @@ async function fetchWithRecovery<T>(
           continue;
         }
         return refreshed; // Can't recover
-        
+
       case "RateLimitError":
         await sleep(result.err.retryAfter * 1000);
         attempt++;
         continue;
-        
+
       case "ValidationError":
         return result; // User needs to fix input
     }
   }
-  
+
   return { type: "Err", err: { type: "NetworkError", retryable: false, delay: 0 } };
 }
 ```
@@ -187,7 +187,7 @@ async fn fetch_with_recovery<T>(
     max_retries: u32,
 ) -> Result<T, ApiError> {
     let mut attempt = 0;
-    
+
     loop {
         match f().await {
             Ok(data) => return Ok(data),
@@ -270,13 +270,13 @@ function handleError(error: AppError): void {
         enableRetry();
       }
       break;
-      
+
     case "system":
       // Generic message to user, detailed alert to team
       showToast(error.display, "error");
       alertEngineering(error.alert, error.context);
       break;
-      
+
     case "external":
       // Retry logic for external services
       if (error.retryable) {
@@ -400,7 +400,7 @@ fn get_user(id: &str) -> Result<User, NotFoundError> {
 </Tab>
 </Tabs>
 
-If you're reaching for `throw` or `panic!()` and it's not program initialization, you're probably wrong.
+If you're reaching for `throw` or `panic!()` and it's not program initialization, you're wrong.
 
 ## When This Doesn't Apply
 
@@ -411,7 +411,7 @@ If you're using a library that throws exceptions, you have two choices:
 1. **Wrap it immediately** at the boundary
 2. **Let it propagate** to a top-level error boundary
 
-Never let thrown exceptions leak into your business logic.
+Never let thrown exceptions leak into your business logic. Third-party exceptions are their problem. Wrap them at the door, give them a type you control, and proceed normally.
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
@@ -463,11 +463,11 @@ But measure first. Modern compilers optimize Result-based code very well.
 
 <Objection>Doesn't this make the code more verbose?</Objection>
 
-Yes, by about 15%. But that verbosity is **honest**. Every error case is visible. Every recovery strategy is explicit. You can't accidentally ignore a failure. The verbosity is the point.
+Yes, by about 15%. But that verbosity is **honest**. Every error case is visible. Every recovery strategy is explicit. You can't accidentally ignore a failure. The verbosity is the point. Compare that 15% overhead to the time you spent debugging a silent exception that swallowed your error and returned `undefined`.
 
 <Objection>What about helper methods like `.unwrap()` or `!`?</Objection>
 
-Use them in examples and tests. Never in production code. If you find yourself writing `.unwrap()`, ask: "What if this actually fails?" Then handle it.
+Use them in examples and tests. Never in production code. If you find yourself writing `.unwrap()`, ask: "What if this actually fails?" Then handle it. Every `.unwrap()` in production code is a ticking clock.
 
 <Objection>How do I convert legacy throwing code?</Objection>
 
@@ -497,15 +497,15 @@ Works perfectly. Async functions can return `Promise<Result<T, E>>`:
 async function fetchUser(id: string): Promise<Result<User, ApiError>> {
   const response = await safeFetch<User>(`/api/users/${id}`);
   if (response.type === "Err") return response;
-  
+
   const validated = validateUser(response.data);
   return validated;
 }
 
 // Chain them
 const result = await fetchUser("123")
-  .then(result => result.type === "Ok" 
-    ? fetchUserPosts(result.data.id) 
+  .then(result => result.type === "Ok"
+    ? fetchUserPosts(result.data.id)
     : Promise.resolve(result)
   );
 ```
@@ -527,4 +527,4 @@ async fn fetch_user(id: &str) -> Result<User, ApiError> {
 
 Granular enough to make different decisions. If two errors require identical handling, they can be the same type. If they require different recovery strategies, split them.
 
-Errors are not exceptional. They're expected. The network goes down. Users send garbage. Third-party APIs return 500s at 2 AM. Treat failure as the default, not the surprise. Your type signatures should say so.
+Errors are not exceptional. They're expected. The network goes down. Users send garbage. Third-party APIs return 500s at 2am. Treat failure as the default, not the surprise. Your type signatures should say so.

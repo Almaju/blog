@@ -13,7 +13,7 @@ If you're staring at your code wondering where to put this field, the answer is 
 
 ### Everyone's Logic Is Different
 
-You think your ordering is logical. It isn't. It's *your* logic, which is invisible to everyone else.
+You think your ordering is logical. It isn't. It's *your* logic, which is invisible to everyone else, and will be invisible to you in four months.
 
 Watch this happen in real time:
 
@@ -48,7 +48,7 @@ struct User {
 </Tab>
 </Tabs>
 
-Developer A is proud of this structure. ID first (primary key!), timestamps last (metadata!), business fields in the middle. It has a logic. A logic that exists only inside Developer A's head. Developer A will explain it in the code review. At length.
+Developer A is proud of this structure. ID first (primary key!), timestamps last (metadata!), business fields in the middle. It has a logic. A logic that exists only inside Developer A's head. Developer A will explain it at length in the code review. Nobody asked.
 
 Then Developer B adds a field:
 
@@ -85,7 +85,7 @@ struct User {
 </Tab>
 </Tabs>
 
-Developer B doesn't know your system. Is `phoneNumber` important like `email`, or optional metadata like `lastLoginAt`? No idea. So they put it at the bottom because **that's the safest social choice**: don't disturb the existing order, don't make enemies, don't own the decision.
+Developer B doesn't know your system. Is `phoneNumber` important like `email`, or optional metadata like `lastLoginAt`? No idea. So they stick it at the bottom because that's the safest political move: don't disturb the existing order, don't own the decision, don't make enemies.
 
 Six months later, you have this:
 
@@ -132,7 +132,7 @@ struct User {
 </Tab>
 </Tabs>
 
-Your original logic is dead. The structure is now archaeological: layers of accretion with no guiding principle. Finding anything requires scanning the whole thing, top to bottom, every time. Congratulations, you've built a list you have to read like a novel. Nobody asked for a novel.
+Your original logic is dead. The structure is now archaeological: layers of sediment with no guiding principle. Finding anything requires scanning the whole thing top to bottom, every time. You built a list you have to read like a novel. Nobody asked for a novel.
 
 ### The Decision Tree of Chaos
 
@@ -153,7 +153,7 @@ graph TD
     class H red
 ```
 
-Every developer makes microdecisions based on their mental model. Those models never align, and nobody documents them. The result: entropy baked into your data structures before a single business rule is written.
+Every developer makes micro-decisions based on their mental model. Those models never align, and nobody documents them. The result: entropy baked into your data structures before a single business rule is written.
 
 ### Alphabetical Order Needs No Explanation
 
@@ -202,15 +202,13 @@ struct User {
 </Tab>
 </Tabs>
 
-Developer A, B, C, and Z all know where to add fields. Developer A doesn't like that `id` isn't first? **Too bad**. Developer B thinks timestamps should be together? **Doesn't matter**. 
+Developer A, B, C, and Z all know where to add fields. Developer A doesn't like that `id` isn't first? **Too bad**. Developer B thinks timestamps should be together? **Doesn't matter**.
 
 There's one rule. It requires zero documentation. It needs no explanation. It's culturally neutral.
 
 When you need to find `phoneNumber`, you don't scan: you binary search mentally. "P comes after N, before R." Found it.
 
-Without a clear convention, developers play it safe. They append. They don't refactor. They preserve the chaos because changing it feels presumptuous.
-
-With alphabetical ordering, placement is objective. You're not imposing your preference: you're following the alphabet. No politics, no ego, no archaeology required.
+Without a clear convention, developers play it safe. They append. They don't refactor. They preserve the chaos because touching it feels presumptuous. With alphabetical ordering, placement is objective. You're not imposing your taste. You're following the alphabet. No politics, no ego, no archaeology.
 
 ## When Not To Sort Alphabetically
 
@@ -231,13 +229,13 @@ You can break this rule. But you must **document the exception**.
  */
 class UserRepository {
   constructor(private db: Database) {}
-  
+
   // Public methods (alphabetical)
   async createUser(data: UserData): Promise<User> {}
   async deleteUser(id: string): Promise<void> {}
   async findUserById(id: string): Promise<User | null> {}
   async updateUser(id: string, data: Partial<UserData>): Promise<User> {}
-  
+
   // Private methods (alphabetical)
   private async executeQuery(sql: string): Promise<any> {}
   private validateUserData(data: UserData): void {}
@@ -254,13 +252,13 @@ impl UserRepository {
     pub fn new(db: Database) -> Self {
         Self { db }
     }
-    
+
     // Public methods (alphabetical)
     pub async fn create_user(&self, data: UserData) -> Result<User> {}
     pub async fn delete_user(&self, id: &str) -> Result<()> {}
     pub async fn find_user_by_id(&self, id: &str) -> Result<Option<User>> {}
     pub async fn update_user(&self, id: &str, data: UserData) -> Result<User> {}
-    
+
     // Private methods (alphabetical)
     async fn execute_query(&self, sql: &str) -> Result<QueryResult> {}
     fn validate_user_data(&self, data: &UserData) -> Result<()> {}
@@ -282,7 +280,7 @@ This exception is fine **because it's documented at the top of the class**. With
  */
 CREATE TABLE orders (
   id UUID PRIMARY KEY,  -- Exception: PK first
-  
+
   -- Alphabetical columns
   created_at TIMESTAMP DEFAULT NOW(),
   customer_id UUID REFERENCES users(id),
@@ -320,14 +318,14 @@ graph TD
     A[Ordering Decision] --> B{Is there a formatter rule?}
     B -->|Yes| C[Use formatter]
     B -->|No| D{Is there documentation?}
-    
+
     D -->|Yes| E[Follow documented convention]
     D -->|No| F[Sort alphabetically]
-    
+
     C --> G[Consistent code]
     E --> G
     F --> G
-    
+
     class G green
 ```
 
@@ -371,7 +369,7 @@ When the formatter handles it, you don't have to think. That's the goal.
 
 <Objection>Doesn't alphabetical ordering hide semantic relationships?</Objection>
 
-If semantic relationships matter, make them explicit in your architecture, not in your field ordering. Use types, modules, and clear naming. Don't rely on spatial proximity to convey meaning.
+If semantic relationships matter, make them explicit in your architecture, not in your field ordering. Use types, modules, and clear naming. Don't rely on spatial proximity to carry meaning — proximity is invisible to the compiler and invisible to anyone who didn't write the code.
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
@@ -464,7 +462,7 @@ No. Apply alphabetical ordering:
 - To any file you're already modifying
 - When it takes < 5 minutes to fix
 
-Don't create churn. But establish the convention and migrate gradually.
+Don't create churn. Establish the convention and migrate gradually. The mess didn't accumulate in a day; don't expect to fix it in one either.
 
 <Objection>What about imports? Sometimes I group by source (stdlib, external, internal).</Objection>
 

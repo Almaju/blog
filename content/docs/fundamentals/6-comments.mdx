@@ -20,9 +20,9 @@ function getUsers(db: Database): User[] {
 }
 ```
 
-The comment says "active users". The code says "not deleted". Those aren't the same thing. Someone added `banned_at` last quarter and forgot to update the comment. The function now returns banned users, the comment still says active, and you've been filtering on `deleted_at` for six months wondering why banned accounts keep showing up.
+The comment says "active users". The code says "not deleted". Those aren't the same thing. Someone added `banned_at` last quarter and forgot to update the comment. The function now returns banned users, the comment still says active, and you've been filtering on `deleted_at` for six months wondering why banned accounts keep showing up in your support queue.
 
-Code that's wrong breaks. A comment that's wrong just misleads, quietly, until something explodes in production.
+Code that's wrong breaks. A comment that's wrong just misleads, quietly, until something explodes in production and you spend three hours reading the wrong code path because the comment pointed you there.
 
 Fix the function name:
 
@@ -55,13 +55,13 @@ You have a `number` where you need a `Money` type. The comment is papering over 
 
 **"// only admins can call this"**
 
-Your function accepts `User` when it should accept `Admin`. The comment is documenting an unchecked precondition. Make it a type error instead.
+Your function accepts `User` when it should accept `Admin`. The comment is documenting an unchecked precondition. Right now it's documented with text that nobody reads. Make it a type error instead.
 
 **"// step 1: validate, step 2: transform, step 3: persist"**
 
-You have three functions trapped inside one. Extract them. The comment is an informal table of contents for code that should be split.
+You have three functions trapped inside one. Extract them. The comment is an informal table of contents for code that should have been split.
 
-The pattern is always the same: the comment describes something the type system, the function structure, or the naming could express directly. The comment is a workaround for code that hasn't been finished.
+The pattern is always the same: the comment describes something the type system, the function structure, or the naming could express directly. The comment is a workaround for code that hasn't been finished yet.
 
 ```mermaid
 graph TD
@@ -79,7 +79,7 @@ graph TD
 
 Most explanatory comments dissolve when you apply techniques from the rest of this guide.
 
-**Rename the thing.** If you need a comment to explain what a variable or function does, the name is wrong.
+**Rename the thing.** If you need a comment to explain what a variable or function does, the name is wrong. The name is the documentation.
 
 **Extract a function.** If a block of code needs a comment header, it's a function waiting to be born. The function name becomes the comment.
 
@@ -172,7 +172,7 @@ function findUserByEmail(users: User[], email: Email): User | undefined {
 
 The comment isn't explaining the code. It's documenting a known tradeoff and pointing at the follow-up. That's useful. That's not something the code can say.
 
-What's not useful: `// TODO: refactor this`. Refactor what? Why? When? A TODO without context is noise with a timestamp.
+What's not useful: `// TODO: refactor this`. Refactor what? Why? When? A TODO without context is noise with a timestamp. It will sit there for three years, mocking every developer who reads it, and nobody will ever act on it because nobody knows what "this" is.
 
 ## When This Doesn't Apply
 
@@ -184,7 +184,7 @@ What's not useful: `// TODO: refactor this`. Refactor what? Why? When? A TODO wi
 
 <Objection>My code is complex. Comments help junior developers understand it.</Objection>
 
-Complex code is the problem. If the code needs a guide to be navigated, simplify the code. Comments help junior developers survive complex code; they don't help them understand it. And they definitely don't help them change it safely.
+Complex code is the problem. If the code needs a guide to be navigated, simplify the code. Comments help junior developers survive complex code; they don't help them understand it. And they definitely don't help them change it safely. You're not doing juniors a favor by documenting a mess. You're preserving the mess.
 
 <Objection>What about explaining WHY, not WHAT?</Objection>
 
@@ -192,4 +192,4 @@ Yes. Why is exactly what the "context" and "intent" comments cover. The rule is 
 
 <Objection>Commented-out code is fine as a temporary thing.</Objection>
 
-You have git. There is no temporary. Commented-out code is code that wasn't deleted. It creates noise, confuses readers, and never gets cleaned up. Delete it. If you need it back, `git log` exists.
+You have git. There is no temporary. Commented-out code is code that wasn't deleted. It creates noise, confuses readers, and never gets cleaned up. Delete it. If you need it back, `git log` exists. And if you can't find it in `git log`, you didn't need it.

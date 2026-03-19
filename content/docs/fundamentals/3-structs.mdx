@@ -92,7 +92,7 @@ class GPSCoordinates {
     private latitude: number,
     private longitude: number,
   ) {}
-  
+
   distanceTo(other: GPSCoordinates): Distance {
     // Haversine in one place
     const R = 6371;
@@ -100,7 +100,7 @@ class GPSCoordinates {
     // ...
     return Distance.fromKilometers(d);
   }
-  
+
   isNear(other: GPSCoordinates, radius: Distance): boolean {
     return this.distanceTo(other).lessThan(radius);
   }
@@ -136,7 +136,7 @@ impl GPSCoordinates {
         // Haversine in one place
         Distance::from_kilometers(d)
     }
-    
+
     fn is_near(&self, other: &GPSCoordinates, radius: Distance) -> bool {
         self.distance_to(other) < radius
     }
@@ -150,7 +150,7 @@ let distance = user_location.distance_to(&store_location);
 </Tab>
 </Tabs>
 
-The complexity doesn't disappear. It's just contained.
+The complexity doesn't disappear. It's just contained. You wrote it once. It lives in one place. Callers don't have to care.
 
 ## Composition Over Inheritance
 
@@ -181,15 +181,15 @@ graph LR
     A[User] --> B[ContactInfo]
     A --> C[BillingInfo]
     A --> D[Preferences]
-    
+
     E[PremiumUser] --> A
     E --> F[SubscriptionDetails]
-    
+
     G[Employee] --> A
     G --> H[EmploymentDetails]
-    
+
     I[Change BillingInfo] -.->|Only affects| C
-    
+
     style I green
 ```
 
@@ -305,7 +305,7 @@ struct CustomerAndEmployee {
 </Tab>
 </Tabs>
 
-Each piece stands alone. Change one, nothing else breaks. Combine them as needed.
+Each piece stands alone. Change one, nothing else breaks. Combine them as needed. No surprising breakage three levels up the hierarchy, no six-file blast radius for adding a single field.
 
 ## When This Doesn't Apply
 
@@ -343,11 +343,11 @@ impl MathUtils {
 </Tab>
 </Tabs>
 
-But if you find yourself passing the same context to many functions, that context should probably be a struct.
+But if you find yourself passing the same context to many functions, that context should probably be a struct. When five functions all take the same three parameters, those parameters want to live together.
 
 ### Scripts and prototypes
 
-If you're writing a one-off script or exploring a problem space, structs might be premature. But once you understand the domain, structure it.
+If you're writing a one-off script or exploring a problem space, structs might be premature. But once you understand the domain, structure it. Prototypes have a way of becoming production code. Structure them before that happens, not after.
 
 ## "Actually..."
 
@@ -361,11 +361,11 @@ What I'm arguing against is scattering `GPSCoordinates` data through four separa
 
 <Objection>How do I know if my struct is well-designed?</Objection>
 
-Ask: "If I come back in 6 months, will I understand what this does?" If yes, good. If no, rename or restructure.
+Ask: "If I come back in 6 months, will I understand what this does?" If yes, good. If no, rename or restructure. Also ask: "Can I change this struct's internals without touching its callers?" If no, the struct is leaking its implementation.
 
 <Objection>What if my struct has 20+ methods?</Objection>
 
-That's fine if they're all related. But consider: could this be multiple structs composed together?
+That's fine if they're all related. But consider: could this be multiple structs composed together? A struct with 25 methods is often three structs that haven't been separated yet.
 
 <Objection>Should everything be a struct?</Objection>
 
@@ -373,6 +373,6 @@ No. But most things that represent concepts in your domain should be. User. Emai
 
 <Objection>What about generic "helpers" or "utils"?</Objection>
 
-`utils.ts` is where orphaned logic goes to die. It means you have functions that belong to a struct you haven't named yet. Name it. The struct is there; you just haven't looked hard enough.
+`utils.ts` is where orphaned logic goes to die. It means you have functions that belong to a struct you haven't named yet. Name it. The struct is there; you just haven't looked hard enough. Every function in your `utils` file is a method on a type that doesn't exist yet.
 
 You don't think about how `Vec` works internally. You just push and pop. Build your domain types so callers can do the same: think in domain concepts, not implementation mechanics.

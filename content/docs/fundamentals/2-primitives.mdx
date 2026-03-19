@@ -22,7 +22,7 @@ graph LR
 
 Nobody writes `sendEmail(buffer: Buffer)`. We all write `sendEmail(address: string)`. But we should write `sendEmail(address: EmailAddress)`. The abstraction ladder doesn't stop at primitives.
 
-In 1999, NASA lost a $327 million Mars orbiter because one engineering team measured thrust in pound-force·seconds and another in newton-seconds. Both were `float`. The type system had nothing to say about it.
+In 1999, NASA lost a $327 million Mars orbiter because one engineering team measured thrust in pound-force·seconds and another in newton-seconds. Both were `float`. The type system had nothing to say about it. The orbiter burned up in the atmosphere. Your bug will be smaller, but the mechanism is identical.
 
 ## Why Primitives Are Too Primitive
 
@@ -43,7 +43,7 @@ function sendInvoice(
   sendEmail(userId, invoiceId); // Swapped parameters ← Bug!
   logAccess(email, url); // Wrong order ← Bug!
   processPayment(amount, userId); // amount * userId ← Bug!
-  
+
   // All type-check perfectly because everything is string/number
 }
 
@@ -64,7 +64,7 @@ function sendInvoice(
   sendEmail(userId, invoiceId); // ← Compile error! Type mismatch
   logAccess(email, url); // ← Compile error! Type mismatch
   processPayment(amount, userId); // ← Compile error! Type mismatch
-  
+
   // Can't swap parameters. Compiler catches all bugs.
 }
 ```
@@ -101,7 +101,7 @@ fn send_invoice(
     send_email(&user_id, &invoice_id); // ← Compile error!
     log_access(&email, &url); // ← Compile error!
     process_payment(amount, &user_id); // ← Compile error!
-    
+
     // Type system prevents all bugs at compile time
 }
 ```
@@ -112,7 +112,7 @@ The compiler becomes your pair programmer. One that actually pays attention. It 
 
 ### Newtypes enforce invariants
 
-You know `price` must be positive. You wrote a comment saying so. Three months later someone passes `-50` and you get a runtime error in production. Comments are not enforcement. Newtypes are:
+You know `price` must be positive. You wrote a comment saying so. Three months later someone passes `-50` and you get a runtime crash in production, at 3am, because comments are not enforcement. Comments are suggestions that the next developer will ignore. Newtypes are not:
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
@@ -134,27 +134,27 @@ const discount3 = calculateDiscount(100, 150); // Runtime error
 // ✅ Validation at construction, never again
 class PositiveNumber {
   private constructor(private readonly value: number) {}
-  
+
   static create(n: number): Result<PositiveNumber, ValidationError> {
     if (n < 0) {
       return { type: "Err", err: { type: "Negative", value: n } };
     }
     return { type: "Ok", data: new PositiveNumber(n) };
   }
-  
+
   getValue(): number { return this.value; }
 }
 
 class Percentage {
   private constructor(private readonly value: number) {}
-  
+
   static create(n: number): Result<Percentage, ValidationError> {
     if (n < 0 || n > 100) {
       return { type: "Err", err: { type: "OutOfRange", value: n } };
     }
     return { type: "Ok", data: new Percentage(n) };
   }
-  
+
   getValue(): number { return this.value; }
 }
 
@@ -194,7 +194,7 @@ impl PositiveNumber {
         }
         Ok(PositiveNumber(n))
     }
-    
+
     fn get(&self) -> f64 { self.0 }
 }
 
@@ -208,7 +208,7 @@ impl Percentage {
         }
         Ok(Percentage(n))
     }
-    
+
     fn get(&self) -> f64 { self.0 }
 }
 
@@ -239,10 +239,10 @@ graph LR
     B[Duration] --> C
     C --> D[Distance]
     B --> D
-    
-    E[❌ number / number = number] 
+
+    E[❌ number / number = number]
     F[✅ Distance / Duration = Speed]
-    
+
     style E red
     style F green
 ```
@@ -262,48 +262,48 @@ const z = x * time; // Multiplying speed by... time? distance?
 // ✅ Type-safe physics
 class Distance {
   private constructor(private meters: number) {}
-  
+
   static fromMeters(m: number): Distance {
     return new Distance(m);
   }
-  
+
   static fromKilometers(km: number): Distance {
     return new Distance(km * 1000);
   }
-  
+
   getMeters(): number { return this.meters; }
   getKilometers(): number { return this.meters / 1000; }
 }
 
 class Duration {
   private constructor(private seconds: number) {}
-  
+
   static fromSeconds(s: number): Duration {
     return new Duration(s);
   }
-  
+
   static fromMinutes(m: number): Duration {
     return new Duration(m * 60);
   }
-  
+
   getSeconds(): number { return this.seconds; }
   getMinutes(): number { return this.seconds / 60; }
 }
 
 class Speed {
   private constructor(private metersPerSecond: number) {}
-  
+
   static fromMetersPerSecond(mps: number): Speed {
     return new Speed(mps);
   }
-  
+
   static fromKilometersPerHour(kph: number): Speed {
     return new Speed(kph / 3.6);
   }
-  
+
   getMetersPerSecond(): number { return this.metersPerSecond; }
   getKilometersPerHour(): number { return this.metersPerSecond * 3.6; }
-  
+
   // Speed * Duration = Distance
   multiply(duration: Duration): Distance {
     return Distance.fromMeters(
@@ -366,7 +366,7 @@ impl Speed {
 // Implement physics: Distance / Duration = Speed
 impl std::ops::Div<Duration> for Distance {
     type Output = Speed;
-    
+
     fn div(self, duration: Duration) -> Speed {
         Speed::from_meters_per_second(self.0 / duration.0)
     }
@@ -375,7 +375,7 @@ impl std::ops::Div<Duration> for Distance {
 // Speed * Duration = Distance
 impl std::ops::Mul<Duration> for Speed {
     type Output = Distance;
-    
+
     fn mul(self, duration: Duration) -> Distance {
         Distance::from_meters(self.0 * duration.0)
     }
@@ -397,7 +397,7 @@ The type system encodes physical laws. You can't accidentally multiply incompati
 
 ## Parse at the Boundary, Never Inside
 
-Validation should happen once: when data enters your system.
+Validation should happen once: when data enters your system. Not in the service. Not in the handler. Not scattered across every function that touches the value.
 
 ```mermaid
 graph LR
@@ -423,40 +423,40 @@ app.post("/users", async (req, res) => {
   if (emailResult.type === "Err") {
     return res.status(400).json({ error: emailResult.err });
   }
-  
+
   const nameResult = Name.parse(req.body.name);
   if (nameResult.type === "Err") {
     return res.status(400).json({ error: nameResult.err });
   }
-  
+
   // From here on: type-safe domain types
   const user = new User(
     UserId.generate(),
     nameResult.data,
     emailResult.data,
   );
-  
+
   // No more validation needed anywhere
   await user.save(store);
   await user.sendWelcomeEmail(emailService);
   await user.createDefaultSettings(settingsService);
-  
+
   // Serialize on the way out
   res.json(user.toJSON());
 });
 
 class Email {
   private constructor(private readonly value: string) {}
-  
+
   static parse(s: string): Result<Email, ValidationError> {
     if (!s.includes("@")) {
       return { type: "Err", err: { type: "InvalidEmail", value: s } };
     }
     return { type: "Ok", data: new Email(s.toLowerCase()) };
   }
-  
+
   getValue(): string { return this.value; }
-  
+
   // Serialize back to primitive
   toJSON(): string { return this.value; }
 }
@@ -472,18 +472,18 @@ async fn create_user(
     // Parse from external format
     let email = Email::parse(&body.email)
         .map_err(ApiError::ValidationError)?;
-    
+
     let name = Name::parse(&body.name)
         .map_err(ApiError::ValidationError)?;
-    
+
     // From here on: type-safe domain types
     let user = User::new(UserId::generate(), name, email);
-    
+
     // No more validation anywhere
     user.save(&store).await?;
     user.send_welcome_email(&email_service).await?;
     user.create_default_settings(&settings_service).await?;
-    
+
     Ok(Json(user))
 }
 
@@ -496,7 +496,7 @@ impl Email {
         }
         Ok(Email(s.to_lowercase()))
     }
-    
+
     fn as_str(&self) -> &str { &self.0 }
 }
 
@@ -523,7 +523,7 @@ Sometimes you need to convert between related types. Make conversions explicit a
 // User input: Paragraph (50-200 chars)
 class Paragraph {
   private constructor(private readonly value: string) {}
-  
+
   static parse(s: string): Result<Paragraph, ValidationError> {
     if (s.length < 50) {
       return { type: "Err", err: { type: "TooShort", min: 50 } };
@@ -533,28 +533,28 @@ class Paragraph {
     }
     return { type: "Ok", data: new Paragraph(s) };
   }
-  
+
   getValue(): string { return this.value; }
 }
 
 // Later usage: Description (3+ chars)
 class Description {
   private constructor(private readonly value: string) {}
-  
+
   static parse(s: string): Result<Description, ValidationError> {
     if (s.length < 3) {
       return { type: "Err", err: { type: "TooShort", min: 3 } };
     }
     return { type: "Ok", data: new Description(s) };
   }
-  
+
   // Type-safe conversion: Paragraph → Description
   // If you have a Paragraph, it's ALWAYS valid as a Description
   static fromParagraph(p: Paragraph): Description {
     // No validation needed! 50-200 chars satisfies 3+ chars
     return new Description(p.getValue());
   }
-  
+
   getValue(): string { return this.value; }
 }
 
@@ -586,7 +586,7 @@ impl Paragraph {
         }
         Ok(Paragraph(s))
     }
-    
+
     fn as_str(&self) -> &str { &self.0 }
 }
 
@@ -599,7 +599,7 @@ impl Description {
         }
         Ok(Description(s))
     }
-    
+
     fn as_str(&self) -> &str { &self.0 }
 }
 
@@ -614,7 +614,7 @@ impl From<Paragraph> for Description {
 // Fallible conversion: Description → Paragraph
 impl TryFrom<Description> for Paragraph {
     type Error = ValidationError;
-    
+
     fn try_from(d: Description) -> Result<Self, Self::Error> {
         // Might fail: not all Descriptions are Paragraphs
         Paragraph::parse(d.0)
@@ -639,11 +639,11 @@ The type system tracks which conversions can fail and which can't. `From` trait 
 
 ### Prototyping and exploration
 
-When you're still figuring out the domain, primitives are fine. But once you understand the domain, refactor to newtypes.
+When you're still figuring out the domain, primitives are fine. Discover first, then formalize. Once you understand what the domain actually needs, wrap it.
 
 ### Performance-critical inner loops
 
-If profiling shows that newtype wrappers/unwrappers are a bottleneck (rare), you can use primitives in hot paths. But keep the boundary types strong.
+If profiling shows that newtype wrappers/unwrappers are a bottleneck (rare), you can use primitives in hot paths. But keep the boundary types strong. And measure before you optimize.
 
 ### Interop with external systems
 
@@ -666,7 +666,7 @@ function parseApiResponse(
   const userId = UserId.parse(response.user_id)?;
   const email = Email.parse(response.email)?;
   const createdAt = Timestamp.fromUnixSeconds(response.created_at)?;
-  
+
   return Ok(new User(userId, email, createdAt));
 }
 ```
@@ -688,7 +688,7 @@ fn parse_api_response(
     let user_id = UserId::parse(&response.user_id)?;
     let email = Email::parse(&response.email)?;
     let created_at = Timestamp::from_unix_seconds(response.created_at)?;
-    
+
     Ok(User::new(user_id, email, created_at))
 }
 ```
@@ -699,7 +699,7 @@ fn parse_api_response(
 
 <Objection>Isn't this verbose?</Objection>
 
-Initially, yes. But you write the newtype once. Then you use it everywhere, catching bugs at compile time instead of runtime. The verbosity pays for itself immediately.
+Initially, yes. But you write the newtype once. Then you use it everywhere, catching bugs at compile time instead of 3am in production. The verbosity pays for itself immediately.
 
 <Objection>What about primitive obsession?</Objection>
 
