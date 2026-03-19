@@ -107,7 +107,7 @@ impl UserService {
 
 ### They make testing a nightmare
 
-Two tests running in parallel both mutate the same singleton. Race condition. Flaky tests. The test passes locally, fails in CI, passes again when you re-run it. You spend an hour in Slack writing "works on my machine" while your colleagues silently judge you. This is the singleton tax: paid in debugging time, paid in CI flakiness, paid every single sprint.
+Two tests running in parallel both mutate the same singleton. Race condition. Flaky tests. Passes locally, fails in CI, passes again when you re-run it. You spend an hour in Slack writing "works on my machine" while your colleagues add you to their mental list of people whose PRs need extra scrutiny. This is the singleton tax: paid in debugging time, paid in CI flakiness, paid every sprint.
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
@@ -240,7 +240,7 @@ let user_service = UserService::new(db, logger);
 
 ### They obscure the dependency graph
 
-With DI frameworks, you can't see what depends on what by reading the code. You configure strings in one file, inject by annotation in another, and hope the container resolves it all correctly at runtime. When it doesn't, you get an error message that says something failed to wire, but not why, and not where to look. You're spelunking through reflection at 4pm on a Friday trying to understand why the container can't find `"DATABASE"` when it's right there in the config, except you spelled it `"DATABSE"` and the framework accepted it silently.
+With DI frameworks, you can't see what depends on what by reading the code. You configure strings in one file, inject by annotation in another, and hope the container resolves it correctly at runtime. When it doesn't, you get a message that says something failed to wire, no indication of where, and a Friday afternoon disappears. You find the bug: you typed `"DATABSE"`. The framework accepted it silently. Of course it did.
 
 ```mermaid
 graph TD

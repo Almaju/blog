@@ -6,7 +6,7 @@ description: Wrap primitive types in domain-specific newtypes.
 
 <Principle>Wrap every primitive that carries domain meaning in a dedicated type. Let the compiler enforce what your variable names only suggest.</Principle>
 
-We evolved past programming in raw bytes because bytes are too primitive to think in. The same logic applies one level up. Finish the job:
+Everyone graduated from raw bytes because `char*` pointer arithmetic made you want to quit. You replaced it with `string`, patted yourself on the back, and stopped. The abstraction ladder doesn't end there.
 
 ```mermaid
 graph LR
@@ -20,9 +20,9 @@ graph LR
     class E green
 ```
 
-Nobody writes `sendEmail(buffer: Buffer)`. We all write `sendEmail(address: string)`. But we should write `sendEmail(address: EmailAddress)`. The abstraction ladder doesn't stop at primitives.
+Nobody writes `sendEmail(buffer: Buffer)`. Everyone writes `sendEmail(address: string)`. The next step is `sendEmail(address: EmailAddress)`. Most codebases never take it.
 
-In 1999, NASA lost a $327 million Mars orbiter because one engineering team measured thrust in pound-force·seconds and another in newton-seconds. Both were `float`. The type system had nothing to say about it. The orbiter burned up in the atmosphere. Your bug will be smaller, but the mechanism is identical.
+In 1999, NASA lost a $327 million Mars orbiter because one engineering team measured thrust in pound-force·seconds and another in newton-seconds. Both were `float`. The type system had nothing to say about it. The orbiter burned up in the atmosphere. Your bug will be smaller. The mechanism is identical: a raw number that meant one thing was treated as a raw number that meant something else, and nothing caught it.
 
 ## Why Primitives Are Too Primitive
 
@@ -112,7 +112,7 @@ The compiler becomes your pair programmer. One that actually pays attention. It 
 
 ### Newtypes enforce invariants
 
-You know `price` must be positive. You wrote a comment saying so. Three months later someone passes `-50` and you get a runtime crash in production, at 3am, because comments are not enforcement. Comments are suggestions that the next developer will ignore. Newtypes are not:
+You know `price` must be positive. You wrote a comment saying so. Three months later someone passes `-50` and the crash lands in production at 3am, because a comment is not a constraint. It's a suggestion that will be ignored. Newtypes aren't:
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">

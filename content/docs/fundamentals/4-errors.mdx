@@ -23,7 +23,7 @@ graph LR
 
 ### Exception-based error handling lies to you
 
-When you write `getUserById(id)`, what does the type signature promise? In most languages: "I return a User." That's a lie. It might throw `NetworkError`, `ValidationError`, `NotFoundError`, or a dozen others depending on which developer touched it last. The type system doesn't track this. Your IDE can't help you. The only way to know is to read every line of the implementation and all its callees. You're not writing software at this point; you're doing archaeology through someone else's optimism.
+When you write `getUserById(id)`, what does the type signature promise? In most languages: "I return a User." That's a lie. It might throw `NetworkError`, `ValidationError`, `NotFoundError`, or a dozen others depending on which developer touched it last and how tired they were. The type system doesn't track this. Your IDE can't help you. The only way to know is to read every line of the implementation and all its callees. You're not writing software at this point. You're doing archaeology through someone else's optimism.
 
 <Tabs items={['TypeScript', 'Rust']}>
 <Tab value="TypeScript">
@@ -463,7 +463,7 @@ But measure first. Modern compilers optimize Result-based code very well.
 
 <Objection>Doesn't this make the code more verbose?</Objection>
 
-Yes, by about 15%. But that verbosity is **honest**. Every error case is visible. Every recovery strategy is explicit. You can't accidentally ignore a failure. The verbosity is the point. Compare that 15% overhead to the time you spent debugging a silent exception that swallowed your error and returned `undefined`.
+Yes, by about 15%. But that verbosity is **honest**. Every error case is visible. Every recovery strategy is explicit. You can't accidentally ignore a failure. The verbosity is the point. Compare that 15% overhead to the 3am you spent debugging a silent exception that swallowed your error and returned `undefined`.
 
 <Objection>What about helper methods like `.unwrap()` or `!`?</Objection>
 

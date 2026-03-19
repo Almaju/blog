@@ -5,7 +5,7 @@ description: Your structs are your architecture. Get them wrong and you're debug
 
 <Principle>Obsess over your data structures, not your algorithms. Structs are the load-bearing walls of your program. Get them right and everything else falls into place. Get them wrong and you're debugging forever.</Principle>
 
-Data structures hide complexity. Everyone uses arrays without thinking about memory allocation. Everyone uses hash maps without caring about collision resolution. Nobody writes a `Vec` from scratch before using one. That's the point of abstraction, and it's what you should be doing for your own domain:
+Data structures hide complexity. You use `Vec` every day without thinking about reallocation. You use `HashMap` without caring about collision resolution. Nobody reimplements these — that's the point. Your job is to build the same thing for your domain.
 
 ```mermaid
 graph TD
@@ -154,7 +154,7 @@ The complexity doesn't disappear. It's just contained. You wrote it once. It liv
 
 ## Composition Over Inheritance
 
-Inheritance sounds like reuse. It's actually coupling wearing a trench coat:
+Inheritance sounds like reuse. It isn't. It's coupling wearing a trench coat:
 
 ```mermaid
 graph TD
@@ -305,7 +305,7 @@ struct CustomerAndEmployee {
 </Tab>
 </Tabs>
 
-Each piece stands alone. Change one, nothing else breaks. Combine them as needed. No surprising breakage three levels up the hierarchy, no six-file blast radius for adding a single field.
+Each piece stands alone. Change one, nothing else breaks. Combine them as needed. No surprising breakage three levels up the hierarchy. No six-file blast radius because you added one field.
 
 ## When This Doesn't Apply
 
