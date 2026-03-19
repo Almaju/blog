@@ -35,8 +35,8 @@ graph TD
     D --> D1[Database, WebSocket]
     E --> E1[Store, Context]
 
-    F[❌ Singleton] -.->|Avoid| G[Hidden Dependencies]
-    H[❌ DI Framework] -.->|Avoid| I[Magic Injection]
+    F[Singleton] -.->|Avoid| G[Hidden Dependencies]
+    H[DI Framework] -.->|Avoid| I[Magic Injection]
 
     class C green
     class D green
@@ -532,11 +532,11 @@ This gets violated constantly. Someone needs to save a user, so validation goes 
 <Excalidraw>
 ```mermaid
 graph LR
-    A[❌ Bad: Store owns logic] --> B[store.saveUser]
+    A[Store owns logic] --> B[store.saveUser]
     A --> C[store.saveOrder]
     A --> D[store.savePayment]
 
-    E[✅ Good: Domain owns logic] --> F["user.save(store)"]
+    E[Domain owns logic] --> F["user.save(store)"]
     E --> G["order.save(store)"]
     E --> H["payment.save(store)"]
 

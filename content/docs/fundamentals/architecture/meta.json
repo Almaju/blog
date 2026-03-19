@@ -1,0 +1,5 @@
+{
+  "title": "Architecture",
+  "defaultOpen": true,
+  "pages": ["1-dependencies", "2-testing"]
+}

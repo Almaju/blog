@@ -2,5 +2,5 @@
   "title": "Fundamentals",
   "description": "Core principles for writing clear, maintainable code",
   "root": true,
-  "pages": ["structure", "practices"]
+  "pages": ["modeling", "style", "architecture"]
 }

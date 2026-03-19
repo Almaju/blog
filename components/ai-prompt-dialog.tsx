@@ -10,150 +10,263 @@ Apply these principles when writing code.
 
 ## Sorting
 
-Sort all code elements alphabetically by default: struct fields, object properties, function parameters, class methods, import statements, enum values.
+Sort alphabetically by default: struct fields, object properties, function parameters, class methods, import statements, enum values, table columns. Every list.
 
-Break this rule only when there is a documented reason. Alphabetical order is the only convention that needs no explanation.
+Break this rule only when documented. Visibility grouping (constructor → public → private), natural call-convention order for function parameters, and semantically inseparable method pairs are legitimate exceptions — but the exception must exist in the code as a comment, not in your head.
 
 ## Primitives
 
-Wrap primitive types in domain-specific newtypes by default. A \`UserId\` is not a string. An \`Email\` is not a string. A \`Price\` is not a number.
+Wrap every primitive that carries domain meaning in a dedicated type. \`UserId\` is not a \`string\`. \`Email\` is not a \`string\`. \`Price\` is not a \`number\`.
 
-- Validate once at system boundaries (user input, API responses)
-- Pass the strong type everywhere inside the system
-- Never pass raw \`string\` or \`number\` when a domain type exists
+Validate once at system boundaries (user input, external API responses). Pass the strong type everywhere inside the system. Never pass a raw primitive when a domain type exists.
 
-## Data Structures
+## Structs and Method Ownership
 
-Obsess over data structures before algorithms. A well-designed struct makes the rest of the code obvious.
+Data and the operations that belong with it live together. \`user.save(store)\`, not \`UserRepository.save(user)\`. \`url.parse()\`, not \`UrlParser.parse(url)\`.
 
-- Make illegal states unrepresentable using the type system
-- Prefer flat, explicit structures over nested, implicit ones
-- If your struct needs a comment to be understood, it's probably wrong
+Name things after what they actually are. A todo API has a \`RestApi\`, a \`Todo\`, a \`Store\`. It does not have a \`TodoController\`, \`TodoService\`, or \`RequestHandler\`. If you wouldn't say "I built a UserRepository" to a colleague, don't build one.
+
+Free functions are almost always a smell. Every function in a \`utils\` file is a method on a type that doesn't exist yet. \`parse_url(s)\` belongs on \`Url\`. \`format_user(user)\` belongs on \`User\`. The 1% exception is genuinely stateless math (\`clamp\`, \`min\`, \`max\`) with no natural subject.
+
+Fluent API as a design check: if \`User::create(email).save(store)\` reads naturally, the design is probably right. If you can't figure out what method goes on something, the design is telling you something is wrong.
+
+## Comments
+
+Delete comments that explain what the code does. Fix the code instead. The comment is a confession that the code failed to explain itself.
+
+Two legitimate comment types:
+1. **Context the code cannot express**: a ticket link, a bug reference, the WHY behind a workaround that looks wrong but isn't.
+2. **Substantive TODOs**: what needs to change, why it wasn't done now, with a ticket reference.
+
+Never commit commented-out code. \`git log\` exists.
 
 `;
 
-const PROMPT_TYPESCRIPT = PROMPT_COMMON + `## Error Handling
+const PROMPT_TYPESCRIPT = PROMPT_COMMON + `## Errors
 
-Return errors as typed values. No throws. No panics.
-
-Every function that can fail returns a discriminated union (Result/Either). The caller is forced to handle the error. The type signature tells the truth.
+Every function that can fail returns a discriminated union. No throws in business logic.
 
 \`\`\`typescript
-// Bad
-function getUser(id: UserId): User { // lies — can throw
-  throw new NotFoundError();
-}
+// Bad — lies in the signature
+function getUser(id: string): User { throw new NotFoundError() }
 
-// Good
-function getUser(id: UserId): Result<User, NotFoundError | DatabaseError> {
-  // caller must handle both cases
-}
+// Good — honest signature
+type Result<T, E> = { type: "Ok"; data: T } | { type: "Err"; err: E }
+
+type UserError =
+  | { type: "NotFoundError"; userId: string }
+  | { type: "NetworkError"; retryable: true }
+
+function getUser(id: string): Result<User, UserError> { ... }
 \`\`\`
 
-Exceptions are only acceptable at system boundaries (unrecoverable errors, process crashes).
+Typed errors let you make real decisions: retry \`NetworkError\`, show form errors for \`ValidationError\`, refresh token on \`AuthError\`. Pattern match on the variant. Don't guess with catch blocks.
+
+Throws are only acceptable at startup (missing config, failed DB connection at boot) or invariant violations that prove programmer error. Never in business logic.
 
 ## Dependencies
 
-Pass dependencies explicitly through constructor or method parameters. Never use singletons, global state, or dependency injection frameworks.
+Pass dependencies explicitly through constructor or method parameters. No singletons. No DI frameworks.
 
 \`\`\`typescript
 // Bad — hidden dependency
 class UserService {
-  save(user: User) {
-    Database.getInstance().save(user); // where did this come from?
-  }
+  getUser(id: string) { return Database.instance.query(id) }
 }
 
-// Good — explicit dependency
-class User {
-  save(store: Store): Result<void, DatabaseError> {
-    return store.persist(this);
+// Good — explicit
+class UserService {
+  constructor(private db: Database) {}
+  getUser(id: string) { return this.db.query(id) }
+}
+\`\`\`
+
+If a dependency is not in the type signature, it should not exist. Wire everything in \`main\`. Module-level infrastructure (logger, config) is the one exception: visible at the import level, never mocked in tests.
+
+## Testing
+
+Use real in-memory implementations, not mocks. Mocks test your assumptions. Real implementations test your code.
+
+\`\`\`typescript
+// Bad — tests the assumption, not the constraint
+findByEmail: jest.fn().mockResolvedValue(null)
+
+// Good — enforces the actual uniqueness rule
+class MemDatabase implements Database {
+  private users = new Map<string, User>()
+  async insertUser(user: NewUser): Promise<User> {
+    const existing = await this.findUserByEmail(user.email)
+    if (existing) throw new Error(\`Email exists: \${user.email}\`)
+    const created = { id: crypto.randomUUID(), ...user }
+    this.users.set(created.id, created)
+    return created
   }
 }
 \`\`\`
 
-If a dependency is not in the function signature, it should not exist.
+Build the feature. Then write tests for what you built. Write regression tests the moment you find a bug — that's when you have exact requirements. 90% unit tests (fast, in-process), 10% integration tests (one per external boundary, happy path only), 0% E2E in regular CI.
+
+## Frontend State
+
+Model application state as a discriminated union before writing a single component. The UI is a pure render function over state. Never the other way around.
+
+\`\`\`typescript
+// Bad — 8 possible states, 3 valid, 5 are bugs
+const [user, setUser] = useState<User | null>(null)
+const [loading, setLoading] = useState(false)
+const [error, setError] = useState<string | null>(null)
+
+// Good — 4 states, all valid, compiler-enforced
+type UserState =
+  | { status: "guest" }
+  | { status: "loading" }
+  | { status: "authenticated"; user: User }
+  | { status: "error"; message: string }
+\`\`\`
+
+State lives outside components. Components read state and emit events. No fetching, no side effects, no business logic inside components or hooks.
 `.trim();
 
-const PROMPT_RUST = PROMPT_COMMON + `## Error Handling
+const PROMPT_RUST = PROMPT_COMMON + `## Errors
 
-Return errors as typed values. No panics in business logic.
-
-Every function that can fail returns \`Result<T, E>\`. The caller is forced to handle the error. The type signature tells the truth.
+Every function that can fail returns \`Result<T, E>\`. No panics in business logic.
 
 \`\`\`rust
-// Bad
-fn get_user(id: UserId) -> User { // lies — can panic
-    panic!("not found");
-}
+// Bad — panics hide the failure mode
+fn get_user(id: &str) -> User { todo!() }
 
-// Good
-fn get_user(id: UserId) -> Result<User, AppError> {
-    // caller must handle both cases
-}
+// Good — honest signature
+#[derive(Debug)]
+enum UserError { NotFound { user_id: String }, NetworkError }
+
+fn get_user(id: &str) -> Result<User, UserError> { ... }
 \`\`\`
 
-\`unwrap()\` and \`expect()\` are only acceptable in tests or truly unrecoverable situations.
+Use the \`?\` operator to propagate errors without nesting. Pattern match on variants to make real decisions: retry \`NetworkError\`, return early on \`ValidationError\`.
+
+\`unwrap()\` and \`expect()\` are only acceptable in tests or at startup for truly unrecoverable situations (missing config, no database at boot). Never in business logic.
 
 ## Dependencies
 
-Pass dependencies explicitly through function or constructor parameters. Never use global state or lazy statics for business logic.
+Pass dependencies explicitly through struct fields and function parameters. No global statics for business logic.
 
 \`\`\`rust
-// Bad — hidden dependency
+// Bad — hidden global
 impl UserService {
-    fn save(&self, user: User) {
-        DATABASE.lock().unwrap().save(user); // where did this come from?
+    fn get_user(&self, id: &str) -> User {
+        DATABASE.get().unwrap().query(id) // where did this come from?
     }
 }
 
-// Good — explicit dependency
-impl User {
-    fn save(&self, store: &Store) -> Result<(), DatabaseError> {
-        store.persist(self)
+// Good — explicit
+struct UserService { db: Database }
+
+impl UserService {
+    fn get_user(&self, id: &str) -> Result<User, UserError> {
+        self.db.query(id)
     }
 }
 \`\`\`
 
-If a dependency is not in the function signature, it should not exist.
+If a dependency is not in the struct or function signature, it should not exist. Wire everything in \`main\`. Module-level infrastructure via \`OnceLock\` (logger, config) is the one exception: visible at the import level, never mocked in tests.
+
+## Testing
+
+Use real in-memory implementations, not mocks. Mocks test your assumptions. Real implementations test your code.
+
+\`\`\`rust
+// Good — enforces the actual uniqueness constraint
+struct MemDatabase { users: Mutex<HashMap<String, User>> }
+
+impl Database for MemDatabase {
+    async fn insert_user(&self, user: NewUser) -> Result<User, DbError> {
+        let mut users = self.users.lock().unwrap();
+        if users.values().any(|u| u.email == user.email) {
+            return Err(DbError::UniqueViolation("email".into()));
+        }
+        let created = User { id: Uuid::new_v4().to_string(), ..user.into() };
+        users.insert(created.id.clone(), created.clone());
+        Ok(created)
+    }
+}
+\`\`\`
+
+Build the feature. Then write tests for what you built. Write regression tests the moment you find a bug. 90% unit tests (fast, in-process), 10% integration tests (one per external boundary), 0% E2E in regular CI.
 `.trim();
 
-const PROMPT_PYTHON = PROMPT_COMMON + `## Error Handling
+const PROMPT_PYTHON = PROMPT_COMMON + `## Errors
 
-Handle errors explicitly. Do not let exceptions silently propagate through business logic.
-
-Catch exceptions at system boundaries. Inside the domain, use explicit return types (e.g. with the \`returns\` library) or sentinel values that force the caller to deal with failure.
+Handle errors explicitly. Do not let exceptions silently propagate through business logic. Return typed failure values; catch at boundaries.
 
 \`\`\`python
-# Bad — exception silently propagates
+# Bad — caller has no idea this can fail
 def get_user(user_id: UserId) -> User:
-    return db.query(user_id)  # raises if not found — caller has no idea
+    return db.query(user_id)  # raises if not found
 
 # Good — failure is visible in the signature
 def get_user(user_id: UserId) -> User | None:
-    result = db.query(user_id)
-    return result if result else None
+    return db.query(user_id) or None
+
+# Better — with a Result-like pattern
+@dataclass
+class Ok(Generic[T]): value: T
+@dataclass
+class Err(Generic[E]): error: E
+Result = Ok[T] | Err[E]
+
+def get_user(user_id: UserId) -> Result[User, NotFoundError]:
+    user = db.query(user_id)
+    if not user: return Err(NotFoundError(user_id))
+    return Ok(user)
 \`\`\`
 
-Exceptions are only acceptable at system boundaries (unrecoverable errors, framework entry points).
+Typed errors let you make real decisions: retry network errors, show validation messages, refresh auth tokens. Catch the specific case. One try/except per boundary, not one per function.
+
+Exceptions are only acceptable at startup (missing config, failed connections) or truly unrecoverable situations. Never in business logic.
 
 ## Dependencies
 
-Pass dependencies explicitly through function or \`__init__\` parameters. Never reach for module-level globals or service locators in business logic.
+Pass dependencies explicitly through \`__init__\` parameters. No module-level globals or service locators in business logic.
 
 \`\`\`python
 # Bad — hidden dependency
 class UserService:
-    def save(self, user: User) -> None:
-        Database.get_instance().save(user)  # where did this come from?
+    def get_user(self, user_id: str) -> User:
+        return Database.get_instance().query(user_id)
 
-# Good — explicit dependency
-class User:
-    def save(self, store: Store) -> None:
-        store.persist(self)
+# Good — explicit
+class UserService:
+    def __init__(self, db: Database) -> None:
+        self.db = db
+
+    def get_user(self, user_id: str) -> Result[User, UserError]:
+        return self.db.query(user_id)
 \`\`\`
 
-If a dependency is not in the function signature, it should not exist.
+If a dependency is not in the \`__init__\` or function signature, it should not exist. Wire everything at the application entry point. Module-level constants (logger, config loaded at startup) are the one exception.
+
+## Testing
+
+Use real in-memory implementations, not mocks. Mocks test your assumptions. Real implementations test your code.
+
+\`\`\`python
+# Bad — tests the assumption, not the constraint
+mock_db.find_by_email.return_value = None
+
+# Good — enforces the actual uniqueness constraint
+class MemDatabase(Database):
+    def __init__(self) -> None:
+        self._users: dict[str, User] = {}
+
+    def insert_user(self, user: NewUser) -> Result[User, DbError]:
+        if any(u.email == user.email for u in self._users.values()):
+            return Err(DbError.unique_violation("email"))
+        created = User(id=str(uuid4()), **asdict(user))
+        self._users[created.id] = created
+        return Ok(created)
+\`\`\`
+
+Build the feature. Then write tests for what you built. Write regression tests the moment you find a bug — that's when you have exact requirements. Prefer fast, in-process unit tests. One integration test per external boundary. No E2E in regular CI.
 `.trim();
 
 const PROMPTS = {
