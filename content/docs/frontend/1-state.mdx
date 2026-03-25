@@ -39,6 +39,8 @@ graph TD
     A[State Machine] -->|current state| B[React / Vue / Svelte]
     B -->|events| A
     A -->|pure function| C[Predictable UI]
+    class A green
+    class B yellow
     class C green
 ```
 </Excalidraw>
@@ -49,7 +51,7 @@ Your state lives outside the UI. The UI reads it and emits events. The state mac
 
 Oh, you want to see something beautiful? Here:
 
-<Tabs items={['TypeScript', 'Rust']}>
+<Tabs items={['TypeScript', 'Rust', 'Python']}>
   <Tab value="TypeScript">
   ```typescript
   const [user, setUser] = useState<User | null>(null);
@@ -65,6 +67,17 @@ Oh, you want to see something beautiful? Here:
   let error: RwSignal<Option<String>> = create_rw_signal(None);
   ```
   </Tab>
+  <Tab value="Python">
+  ```python
+  # Equivalent smell in a backend order-flow handler
+  class OrderHandler:
+      def __init__(self):
+          self.order = None        # Order | None
+          self.loading = False     # bool
+          self.error = None        # str | None
+  # Three variables. Eight combinations. You intended three of them.
+  ```
+  </Tab>
 </Tabs>
 
 Three variables. Eight possible states. You intended three of them. The other five come free. No extra charge. A gift from boolean soup to your production environment: `loading: true` with a non-null `user`. `error` set while `loading` is still true. The null-null-null void where nothing is anything and the spinner never stops. You built a bug factory and named it `UserState`.
@@ -73,7 +86,7 @@ You cannot represent these invariants. You can only hope. And you will eventuall
 
 Here's the same thing modeled correctly:
 
-<Tabs items={['TypeScript', 'Rust']}>
+<Tabs items={['TypeScript', 'Rust', 'Python']}>
   <Tab value="TypeScript">
   ```typescript
   type UserState =
@@ -93,13 +106,37 @@ Here's the same thing modeled correctly:
   }
   ```
   </Tab>
+  <Tab value="Python">
+  ```python
+  from dataclasses import dataclass
+  from typing import Literal
+
+  @dataclass
+  class Guest: status: Literal["guest"] = "guest"
+
+  @dataclass
+  class Loading: status: Literal["loading"] = "loading"
+
+  @dataclass
+  class Authenticated:
+      user: User
+      status: Literal["authenticated"] = "authenticated"
+
+  @dataclass
+  class AuthError:
+      message: str
+      status: Literal["error"] = "error"
+
+  UserState = Guest | Loading | Authenticated | AuthError
+  ```
+  </Tab>
 </Tabs>
 
 Four states. Zero invalid combinations. The compiler enforces what your comments only suggested.
 
 The UI becomes a switch statement:
 
-<Tabs items={['TypeScript', 'Rust']}>
+<Tabs items={['TypeScript', 'Rust', 'Python']}>
   <Tab value="TypeScript">
   ```typescript
   function UserSection({ state }: { state: UserState }) {
@@ -124,6 +161,22 @@ The UI becomes a switch statement:
   }
   ```
   </Tab>
+  <Tab value="Python">
+  ```python
+  def handle_user_request(state: UserState) -> Response:
+      match state:
+          case Guest():
+              return redirect("/login")
+          case Loading():
+              return Response(status=202, json={"status": "loading"})
+          case Authenticated(user=user):
+              return render_dashboard(user)
+          case AuthError(message=message):
+              return Response(status=401, json={"error": message})
+  # No null checks. No boolean conditions. The match is exhaustive —
+  # mypy will tell you if you forget a branch.
+  ```
+  </Tab>
 </Tabs>
 
 No conditions. No null checks. No "what if user is null and loading is false and error is also null" edge case that you discover at 2am. The type system made that state impossible.
@@ -132,7 +185,7 @@ No conditions. No null checks. No "what if user is null and loading is false and
 
 Real applications have multiple orthogonal state machines. Compose them.
 
-<Tabs items={['TypeScript', 'Rust']}>
+<Tabs items={['TypeScript', 'Rust', 'Python']}>
   <Tab value="TypeScript">
   ```typescript
   type AuthState =
@@ -171,6 +224,49 @@ Real applications have multiple orthogonal state machines. Compose them.
       dashboard: DataState<DashboardData>,
       notifications: DataState<Vec<Notification>>,
   }
+  ```
+  </Tab>
+  <Tab value="Python">
+  ```python
+  from dataclasses import dataclass
+  from typing import Generic, TypeVar
+
+  T = TypeVar("T")
+
+  @dataclass
+  class GuestAuth: status: Literal["guest"] = "guest"
+
+  @dataclass
+  class AuthenticatedAuth:
+      user: User
+      role: Literal["user", "admin"]
+      status: Literal["authenticated"] = "authenticated"
+
+  AuthState = GuestAuth | AuthenticatedAuth
+
+  @dataclass
+  class Idle: status: Literal["idle"] = "idle"
+
+  @dataclass
+  class DataLoading: status: Literal["loading"] = "loading"
+
+  @dataclass
+  class Ready(Generic[T]):
+      data: T
+      status: Literal["ready"] = "ready"
+
+  @dataclass
+  class DataError:
+      error: str
+      status: Literal["error"] = "error"
+
+  DataState = Idle | DataLoading | Ready[T] | DataError
+
+  @dataclass
+  class AppState:
+      auth: AuthState
+      dashboard: DataState[DashboardData]
+      notifications: DataState[list[Notification]]
   ```
   </Tab>
 </Tabs>

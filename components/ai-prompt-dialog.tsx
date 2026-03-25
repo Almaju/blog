@@ -30,6 +30,8 @@ Free functions are almost always a smell. Every function in a \`utils\` file is 
 
 Fluent API as a design check: if \`User::create(email).save(store)\` reads naturally, the design is probably right. If you can't figure out what method goes on something, the design is telling you something is wrong.
 
+A struct with 25 methods is three types that haven't been separated yet. Ask: do all these methods operate on the same data? Split what can stand alone.
+
 ## Comments
 
 Delete comments that explain what the code does. Fix the code instead. The comment is a confession that the code failed to explain itself.
@@ -39,6 +41,12 @@ Two legitimate comment types:
 2. **Substantive TODOs**: what needs to change, why it wasn't done now, with a ticket reference.
 
 Never commit commented-out code. \`git log\` exists.
+
+## Migrations
+
+Commit two files per schema change: \`schema.sql\` (what the database looks like now) and \`migrate.sql\` (how to get there from the last version). Git holds the rest.
+
+Never accumulate numbered migration files (\`V001\`, \`V002\`, \`V043\`). Nobody can read the schema without replaying all of them. \`schema.sql\` is always the current truth. \`migrate.sql\` is the single step forward. The previous schema version already lives in git — you don't need it in the directory.
 
 `;
 
@@ -104,7 +112,7 @@ class MemDatabase implements Database {
 }
 \`\`\`
 
-Build the feature. Then write tests for what you built. Write regression tests the moment you find a bug — that's when you have exact requirements. 90% unit tests (fast, in-process), 10% integration tests (one per external boundary, happy path only), 0% E2E in regular CI.
+Build the feature. Then test what you built. Don't write tests before you understand the shape of the code — requirements are fuzzy until they aren't. The one exception: write the failing test the moment you find a bug. At that point you have exact requirements (the input, the wrong output, the right output). That's when test-first pays off. Over time this builds a suite that reflects real failure modes. 90% unit tests (fast, in-process), 10% integration tests (one per external boundary, happy path only), 0% E2E in regular CI.
 
 ## Frontend State
 
@@ -191,7 +199,7 @@ impl Database for MemDatabase {
 }
 \`\`\`
 
-Build the feature. Then write tests for what you built. Write regression tests the moment you find a bug. 90% unit tests (fast, in-process), 10% integration tests (one per external boundary), 0% E2E in regular CI.
+Build the feature. Then test what you built. Don't write tests before you understand the shape of the code — requirements are fuzzy until they aren't. The one exception: write the failing test the moment you find a bug. At that point you have exact requirements. That's when test-first pays off. 90% unit tests (fast, in-process), 10% integration tests (one per external boundary), 0% E2E in regular CI.
 `.trim();
 
 const PROMPT_PYTHON = PROMPT_COMMON + `## Errors
@@ -199,28 +207,29 @@ const PROMPT_PYTHON = PROMPT_COMMON + `## Errors
 Handle errors explicitly. Do not let exceptions silently propagate through business logic. Return typed failure values; catch at boundaries.
 
 \`\`\`python
-# Bad — caller has no idea this can fail
+# Bad — caller has no idea this can fail, can't distinguish failure modes
 def get_user(user_id: UserId) -> User:
     return db.query(user_id)  # raises if not found
 
-# Good — failure is visible in the signature
-def get_user(user_id: UserId) -> User | None:
-    return db.query(user_id) or None
-
-# Better — with a Result-like pattern
+# Good — typed error variants, each actionable
 @dataclass
 class Ok(Generic[T]): value: T
 @dataclass
 class Err(Generic[E]): error: E
 Result = Ok[T] | Err[E]
 
-def get_user(user_id: UserId) -> Result[User, NotFoundError]:
+@dataclass
+class NotFoundError: user_id: UserId
+@dataclass
+class NetworkError: retryable: bool
+
+def get_user(user_id: UserId) -> Result[User, NotFoundError | NetworkError]:
     user = db.query(user_id)
     if not user: return Err(NotFoundError(user_id))
     return Ok(user)
 \`\`\`
 
-Typed errors let you make real decisions: retry network errors, show validation messages, refresh auth tokens. Catch the specific case. One try/except per boundary, not one per function.
+Typed errors let you make real decisions: retry \`NetworkError\`, show form errors for \`ValidationError\`, refresh token on \`AuthError\`. \`User | None\` loses the failure reason. Use explicit error variants instead. One try/except per boundary, not one per function.
 
 Exceptions are only acceptable at startup (missing config, failed connections) or truly unrecoverable situations. Never in business logic.
 
@@ -266,7 +275,7 @@ class MemDatabase(Database):
         return Ok(created)
 \`\`\`
 
-Build the feature. Then write tests for what you built. Write regression tests the moment you find a bug — that's when you have exact requirements. Prefer fast, in-process unit tests. One integration test per external boundary. No E2E in regular CI.
+Build the feature. Then test what you built. Don't write tests before you understand the shape of the code — requirements are fuzzy until they aren't. The one exception: write the failing test the moment you find a bug. At that point you have exact requirements. That's when test-first pays off. Prefer fast, in-process unit tests. One integration test per external boundary. No E2E in regular CI.
 `.trim();
 
 const PROMPTS = {
@@ -307,47 +316,47 @@ export function AIPromptDialog() {
                 Paste into your CLAUDE.md, Cursor rules, or any AI config file
               </Dialog.Description>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={copy}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-white/20 text-sm font-medium text-white/80 hover:bg-white/10 transition-colors"
-              >
-                {copied ? (
-                  <>
-                    <Check className="w-3.5 h-3.5 text-green-500" />
-                    Copied
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-3.5 h-3.5" />
-                    Copy
-                  </>
-                )}
-              </button>
-              <Dialog.Close className="p-1.5 rounded-md text-white/60 hover:bg-white/10 hover:text-white transition-colors" aria-label="Close">
-                <X className="w-4 h-4" />
-              </Dialog.Close>
+            <Dialog.Close className="p-1.5 rounded-md text-white/60 hover:bg-white/10 hover:text-white transition-colors" aria-label="Close">
+              <X className="w-4 h-4" />
+            </Dialog.Close>
+          </div>
+
+          <div className="flex items-center justify-between px-5 pt-3">
+            <div className="flex gap-1">
+              {(Object.keys(PROMPTS) as Language[]).map((lang) => (
+                <button
+                  key={lang}
+                  onClick={() => setLanguage(lang)}
+                  className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                    language === lang
+                      ? "bg-white/20 text-white"
+                      : "text-white/50 hover:text-white/80 hover:bg-white/10"
+                  }`}
+                >
+                  {lang}
+                </button>
+              ))}
             </div>
+            <button
+              onClick={copy}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-white/20 text-xs font-medium text-white/80 hover:bg-white/10 transition-colors"
+            >
+              {copied ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-green-500" />
+                  Copied
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5" />
+                  Copy
+                </>
+              )}
+            </button>
           </div>
 
-          <div className="flex gap-1 px-5 pt-3">
-            {(Object.keys(PROMPTS) as Language[]).map((lang) => (
-              <button
-                key={lang}
-                onClick={() => setLanguage(lang)}
-                className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                  language === lang
-                    ? "bg-white/20 text-white"
-                    : "text-white/50 hover:text-white/80 hover:bg-white/10"
-                }`}
-              >
-                {lang}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex-1 overflow-auto p-4">
-            <pre className="h-full p-5 text-xs leading-relaxed font-mono whitespace-pre-wrap bg-[#1e1e2e] text-[#cdd6f4] rounded-lg">
+          <div className="flex-1 min-h-0 p-4 flex flex-col">
+            <pre className="flex-1 min-h-0 overflow-auto p-5 text-xs leading-relaxed font-mono whitespace-pre-wrap bg-[#1e1e2e] text-[#cdd6f4] rounded-lg">
               {PROMPTS[language]}
             </pre>
           </div>

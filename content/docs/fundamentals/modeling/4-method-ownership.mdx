@@ -47,9 +47,11 @@ graph TD
     E --> H[TodoService]
     E --> I[TodoHandler]
 
+    class A blue
     class B green
     class C green
     class D green
+    class E red
     class F red
     class G red
     class H red
@@ -63,43 +65,19 @@ Four names you'd say out loud. Four names that don't exist in your domain. Pick 
 
 `User` needs to be saved. Where does `save` go?
 
-<Tabs items={['TypeScript', 'Rust']}>
+<Tabs items={['TypeScript', 'Rust', 'Python']}>
 <Tab value="TypeScript">
 ```typescript
-// ❌ The Repository Way
+// ❌ The Repository Way — behavior scattered across invented types
 class UserRepository {
-  async save(user: User): Promise<void> {
-    await this.db.query("INSERT INTO users ...", user);
-  }
-
   async ban(userId: string): Promise<void> {
     await this.db.query("UPDATE users SET banned_at = NOW() WHERE id = ?", userId);
   }
 }
-
-// Six months later, UserService gets this:
-class UserService {
-  async banUser(userId: string): Promise<void> {
-    // Slightly different. Also works. Now you have two.
-    await this.db.query(
-      "UPDATE users SET banned_at = ?, is_active = false WHERE id = ?",
-      new Date(), userId
-    );
-  }
-}
+// Six months later, UserService gets this too. Now you have two.
 
 // ✅ The thing owns its behavior
 class User {
-  constructor(
-    public id: string,
-    public email: string,
-    public bannedAt: Date | null,
-  ) {}
-
-  get isBanned(): boolean {
-    return this.bannedAt !== null;
-  }
-
   ban(): User {
     return new User(this.id, this.email, new Date());
   }
@@ -109,39 +87,21 @@ class User {
   }
 }
 
-// The feature is: user.ban().save(store)
-// One place to look. One way to do it.
+// user.ban().save(store) — one place to look, one way to do it
 ```
 </Tab>
 <Tab value="Rust">
 ```rust
-// ❌ The Repository Way
-struct UserRepository {
-    db: Database,
-}
-
+// ❌ The Repository Way — behavior scattered across invented types
 impl UserRepository {
-    async fn save(&self, user: &User) -> Result<(), Error> {
-        self.db.query("INSERT INTO users ...", user).await
-    }
-
     async fn ban(&self, user_id: &str) -> Result<(), Error> {
         self.db.query("UPDATE users SET banned_at = NOW() WHERE id = ?", user_id).await
     }
 }
+// Six months later, UserService gets this too. Now you have two.
 
 // ✅ The thing owns its behavior
-struct User {
-    id: String,
-    email: String,
-    banned_at: Option<DateTime<Utc>>,
-}
-
 impl User {
-    fn is_banned(&self) -> bool {
-        self.banned_at.is_some()
-    }
-
     fn ban(self) -> Self {
         Self { banned_at: Some(Utc::now()), ..self }
     }
@@ -151,8 +111,32 @@ impl User {
     }
 }
 
-// user.ban().save(&store).await
-// One place. One way.
+// user.ban().save(&store).await — one place, one way
+```
+</Tab>
+<Tab value="Python">
+```python
+# ❌ The Repository Way — behavior scattered across invented types
+class UserRepository:
+    def ban(self, user_id: str) -> None:
+        db.query("UPDATE users SET banned_at = NOW() WHERE id = ?", user_id)
+
+# Six months later, UserService gets this too. Now you have two.
+
+# ✅ The thing owns its behavior
+@dataclass
+class User:
+    id: str
+    email: str
+    banned_at: datetime | None = None
+
+    def ban(self) -> "User":
+        return replace(self, banned_at=datetime.now(timezone.utc))
+
+    def save(self, store: "Store") -> Result[None, SaveError]:
+        return store.persist(self)
+
+# user.ban().save(store) — one place to look, one way to do it
 ```
 </Tab>
 </Tabs>
@@ -202,9 +186,13 @@ graph LR
     E[Store::save] --> F[Correct]
     G[StoreService::save] --> H[Invented]
 
+    class A green
     class B green
-    class F green
+    class C red
     class D red
+    class E green
+    class F green
+    class G red
     class H red
 ```
 </Excalidraw>

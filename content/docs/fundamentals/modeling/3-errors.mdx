@@ -31,48 +31,60 @@ The problem started before the bug. It started when someone wrote `getUserById(i
 
 When you write `getUserById(id)`, what does the type signature promise? A User. That's a lie. It might throw `NetworkError`, `ValidationError`, `NotFoundError`, or a dozen others depending on which developer touched it last and how tired they were. The type system doesn't track this. Your IDE can't help you. The only way to know is to read every line of the implementation and every callee it touches.
 
-<Tabs items={['TypeScript', 'Rust']}>
+<Tabs items={['TypeScript', 'Rust', 'Python']}>
 <Tab value="TypeScript">
 ```typescript
 // The Lie
 function getUserById(id: string): User {
-  // Could throw NetworkError
-  // Could throw NotFoundError
-  // Could throw ValidationError
+  // Could throw NetworkError, NotFoundError, ValidationError...
   // Type signature reveals none of this
 }
 
 // The Truth
-type Result<T, E> =
-  | { type: "Ok"; data: T }
-  | { type: "Err"; err: E };
-
 type UserError =
-  | { type: "NetworkError"; message: string; retryable: true }
-  | { type: "NotFoundError"; userId: string; retryable: false }
-  | { type: "ValidationError"; field: string; retryable: false };
+  | { type: "NetworkError"; message: string }
+  | { type: "NotFoundError"; userId: string };
 
 function getUserById(id: string): Result<User, UserError> {
   // Now the signature tells the truth
-  // Every error is documented
-  // The compiler forces handling
 }
 ```
 </Tab>
 <Tab value="Rust">
 ```rust
-// Rust learned this lesson from the start
 #[derive(Debug)]
 enum UserError {
     NetworkError { message: String },
     NotFoundError { user_id: String },
-    ValidationError { field: String },
 }
 
 fn get_user_by_id(id: &str) -> Result<User, UserError> {
-    // The type system makes errors first-class
-    // You literally cannot ignore them
+    // The type system makes errors first-class — you cannot ignore them
 }
+```
+</Tab>
+<Tab value="Python">
+```python
+# The Lie
+def get_user_by_id(id: str) -> "User":
+    # Could raise NetworkError, NotFoundError...
+    # Type signature reveals none of this
+    ...
+
+# The Truth
+@dataclass
+class NetworkError:
+    message: str
+
+@dataclass
+class NotFoundError:
+    user_id: str
+
+UserError = NetworkError | NotFoundError
+
+def get_user_by_id(id: str) -> Result["User", UserError]:
+    # Now the signature tells the truth
+    ...
 ```
 </Tab>
 </Tabs>
@@ -81,7 +93,7 @@ fn get_user_by_id(id: &str) -> Result<User, UserError> {
 
 Oh, here's something beautiful. Someone called this "defensive programming":
 
-<Tabs items={['TypeScript', 'Rust']}>
+<Tabs items={['TypeScript', 'Rust', 'Python']}>
 <Tab value="TypeScript">
 ```typescript
 // Exception Hell
@@ -117,6 +129,37 @@ fn get_comments_for_user(id: &str) -> Result<Vec<Comment>, AppError> {
 // Each ? says: "if error, return early; otherwise, unwrap"
 ```
 </Tab>
+<Tab value="Python">
+```python
+# Pyramid of despair
+try:
+    user = get_user_by_id(id)
+    try:
+        posts = get_posts_by_user(user)
+        try:
+            comments = get_comments_by_posts(posts)
+            return process_comments(comments)
+        except Exception:
+            pass  # what do I even do here?
+    except Exception:
+        pass
+except Exception:
+    pass
+
+# Result Heaven — every failure is visible
+def get_comments_for_user(id: str) -> Result[list[Comment], AppError]:
+    user_result = get_user_by_id(id)
+    if isinstance(user_result, Err):
+        return user_result
+    posts_result = get_posts_by_user(user_result.value)
+    if isinstance(posts_result, Err):
+        return posts_result
+    comments_result = get_comments_by_posts(posts_result.value)
+    if isinstance(comments_result, Err):
+        return comments_result
+    return Ok(process_comments(comments_result.value))
+```
+</Tab>
 </Tabs>
 
 The person who wrote the pyramid is at another company now. The pyramid is still there. Nobody knows what any of the inner catch blocks were supposed to do because `catch (e)` with an empty comment doesn't tell you anything. You find out what they caught the day it stops catching it.
@@ -145,7 +188,7 @@ graph TD
 ```
 </Excalidraw>
 
-<Tabs items={['TypeScript', 'Rust']}>
+<Tabs items={['TypeScript', 'Rust', 'Python']}>
 <Tab value="TypeScript">
 ```typescript
 type ApiError =
@@ -186,6 +229,20 @@ match err {
 }
 ```
 </Tab>
+<Tab value="Python">
+```python
+# Pattern match on the error. Make a real decision.
+match err:
+    case NetworkError(delay=delay):
+        await asyncio.sleep(delay * (2 ** attempt))
+    case AuthError(refresh_token=token):
+        await refresh_auth(token)
+    case RateLimitError(retry_after=retry_after):
+        await asyncio.sleep(retry_after)
+    case ValidationError():
+        return Err(err)  # Not retryable — user needs to fix their input.
+```
+</Tab>
 </Tabs>
 
 With exceptions, you catch `Error` and guess. With typed errors, you match the variant and act. The difference is whether your recovery logic is a strategy or a prayer.
@@ -214,29 +271,12 @@ graph TD
 ```
 </Excalidraw>
 
-<Tabs items={['TypeScript', 'Rust']}>
+<Tabs items={['TypeScript', 'Rust', 'Python']}>
 <Tab value="TypeScript">
 ```typescript
-type UserError = {
-  category: "user";
-  display: string; // Show to user
-  recoverable: boolean;
-};
-
-type SystemError = {
-  category: "system";
-  display: "Something went wrong"; // Generic message
-  alert: string; // Alert engineering team
-  context: Record<string, unknown>;
-};
-
-type ExternalError = {
-  category: "external";
-  service: string;
-  retryable: boolean;
-  retryAfter?: number;
-};
-
+type UserError   = { category: "user";     display: string; recoverable: boolean };
+type SystemError = { category: "system";   alert: string;   context: Record<string, unknown> };
+type ExternalError = { category: "external"; service: string; retryable: boolean; retryAfter?: number };
 type AppError = UserError | SystemError | ExternalError;
 
 function handleError(error: AppError): void {
@@ -245,18 +285,14 @@ function handleError(error: AppError): void {
       showToast(error.display, "error");
       if (error.recoverable) enableRetry();
       break;
-
     case "system":
-      showToast(error.display, "error");
+      showToast("Something went wrong", "error");
       alertEngineering(error.alert, error.context);
       break;
-
     case "external":
-      if (error.retryable) {
-        scheduleRetry(error.service, error.retryAfter);
-      } else {
-        showServiceUnavailable(error.service);
-      }
+      error.retryable
+        ? scheduleRetry(error.service, error.retryAfter)
+        : showServiceUnavailable(error.service);
       break;
   }
 }
@@ -264,34 +300,58 @@ function handleError(error: AppError): void {
 </Tab>
 <Tab value="Rust">
 ```rust
-#[derive(Debug)]
-enum AppError {
-    User(UserError),
-    System(SystemError),
-    External(ExternalError),
-}
+enum AppError { User(UserError), System(SystemError), External(ExternalError) }
 
 fn handle_error(error: AppError) {
     match error {
         AppError::User(e) => {
             show_toast(&e.display, ToastLevel::Error);
-            if e.recoverable {
-                enable_retry();
-            }
+            if e.recoverable { enable_retry(); }
         }
         AppError::System(e) => {
             show_toast("Something went wrong", ToastLevel::Error);
             alert_engineering(&e.alert, &e.context);
         }
         AppError::External(e) => {
-            if e.retryable {
-                schedule_retry(&e.service, e.retry_after);
-            } else {
-                show_service_unavailable(&e.service);
-            }
+            if e.retryable { schedule_retry(&e.service, e.retry_after); }
+            else { show_service_unavailable(&e.service); }
         }
     }
 }
+```
+</Tab>
+<Tab value="Python">
+```python
+@dataclass
+class UserError:
+    display: str
+    recoverable: bool
+
+@dataclass
+class SystemError:
+    alert: str
+    context: dict[str, Any]
+
+@dataclass
+class ExternalError:
+    service: str
+    retryable: bool
+    retry_after: float | None = None
+
+AppError = UserError | SystemError | ExternalError
+
+def handle_error(error: AppError) -> None:
+    match error:
+        case UserError(display=msg, recoverable=recoverable):
+            show_toast(msg, "error")
+            if recoverable: enable_retry()
+        case SystemError(alert=alert, context=ctx):
+            show_toast("Something went wrong", "error")
+            alert_engineering(alert, ctx)
+        case ExternalError(service=svc, retryable=True, retry_after=after):
+            schedule_retry(svc, after)
+        case ExternalError(service=svc, retryable=False):
+            show_service_unavailable(svc)
 ```
 </Tab>
 </Tabs>
@@ -306,46 +366,46 @@ Initialization failures. Missing config that the application requires to exist. 
 
 Invariant violations that indicate programmer error. An index out of bounds after you just checked the length. A state transition that should be impossible. A lock poisoned in a single-threaded context.
 
-<Tabs items={['TypeScript', 'Rust']}>
+<Tabs items={['TypeScript', 'Rust', 'Python']}>
 <Tab value="TypeScript">
 ```typescript
-// OK to throw
-const config = loadConfig(); // Throw if missing - can't run without it
-const db = await connectDatabase(config.dbUrl); // Throw if can't connect
+// OK to throw — program can't run without these
+const config = loadConfig();
+const db = await connectDatabase(config.dbUrl);
 
-// NOT OK to throw
-function getUser(id: string): User {
-  const user = db.query("SELECT * FROM users WHERE id = ?", id);
-  if (!user) throw new Error("User not found"); // NO. Return Result.
-}
-
-// Correct
+// NOT OK to throw — return Result instead
 function getUser(id: string): Result<User, NotFoundError> {
   const user = db.query("SELECT * FROM users WHERE id = ?", id);
-  if (!user) {
-    return { type: "Err", err: { type: "NotFoundError", userId: id } };
-  }
+  if (!user) return { type: "Err", err: { type: "NotFoundError", userId: id } };
   return { type: "Ok", data: user };
 }
 ```
 </Tab>
 <Tab value="Rust">
 ```rust
-// OK to panic
+// OK to panic — program can't run without these
 let config = load_config().expect("Config file required for startup");
 let db = connect_database(&config.db_url).expect("Cannot run without database");
 
-// NOT OK to panic
-fn get_user(id: &str) -> User {
-    db.query("SELECT * FROM users WHERE id = ?", id)
-        .expect("User not found") // NO. Return Result.
-}
-
-// Correct
+// NOT OK to panic — return Result instead
 fn get_user(id: &str) -> Result<User, NotFoundError> {
     db.query("SELECT * FROM users WHERE id = ?", id)
         .ok_or(NotFoundError { user_id: id.to_string() })
 }
+```
+</Tab>
+<Tab value="Python">
+```python
+# OK to raise — program can't run without these
+config = load_config()
+db = connect_database(config.db_url)
+
+# NOT OK to raise — return Result instead
+def get_user(id: str) -> Result["User", NotFoundError]:
+    user = db.query("SELECT * FROM users WHERE id = ?", id)
+    if user is None:
+        return Err(NotFoundError(user_id=id))
+    return Ok(user)
 ```
 </Tab>
 </Tabs>
@@ -358,25 +418,16 @@ If you're reaching for `throw` or `panic!()` and it's not program initialization
 
 If the library throws, wrap it at the boundary. One try-catch. Give it a type you control. Never let a third-party exception leak into your business logic.
 
-<Tabs items={['TypeScript', 'Rust']}>
+<Tabs items={['TypeScript', 'Rust', 'Python']}>
 <Tab value="TypeScript">
 ```typescript
-// Wrap throwing libraries at the door
+// Wrap throwing libraries at the door — one try-catch, typed result out
 function safeFetch<T>(url: string): Result<T, NetworkError> {
   try {
-    const response = await fetch(url);
-    const data = await response.json();
+    const data = await fetch(url).then(r => r.json());
     return { type: "Ok", data };
   } catch (e) {
-    return {
-      type: "Err",
-      err: {
-        type: "NetworkError",
-        message: e instanceof Error ? e.message : "Unknown error",
-        retryable: true,
-        delay: 1000,
-      },
-    };
+    return { type: "Err", err: { type: "NetworkError", message: String(e) } };
   }
 }
 ```
@@ -389,6 +440,18 @@ fn safe_parse(s: &str) -> Result<Value, ParseError> {
     })
     .map_err(|_| ParseError::ParserPanicked)
 }
+```
+</Tab>
+<Tab value="Python">
+```python
+# Wrap throwing libraries at the door — one try/except, typed result out
+def safe_fetch(url: str) -> Result[dict, NetworkError]:
+    try:
+        response = httpx.get(url)
+        response.raise_for_status()
+        return Ok(response.json())
+    except Exception as e:
+        return Err(NetworkError(message=str(e)))
 ```
 </Tab>
 </Tabs>

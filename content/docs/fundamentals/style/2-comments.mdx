@@ -28,7 +28,7 @@ Code that's wrong breaks. A comment that's wrong just misleads, quietly, until s
 
 Fix the function name:
 
-<Tabs items={['TypeScript', 'Rust']}>
+<Tabs items={['TypeScript', 'Rust', 'Python']}>
   <Tab value="TypeScript">
   ```typescript
   function getNonDeletedUsers(db: Database): User[] {
@@ -41,6 +41,12 @@ Fix the function name:
   fn get_non_deleted_users(db: &Database) -> Vec<User> {
       db.query("SELECT * FROM users WHERE deleted_at IS NULL")
   }
+  ```
+  </Tab>
+  <Tab value="Python">
+  ```python
+  def get_non_deleted_users(db: Database) -> list[User]:
+      return db.query("SELECT * FROM users WHERE deleted_at IS NULL")
   ```
   </Tab>
 </Tabs>
@@ -91,16 +97,14 @@ Most explanatory comments dissolve when you apply techniques from the rest of th
 
 **Use an enum.** If you're commenting valid values for a field, those values belong in a type. The comment `// status: 'pending' | 'approved' | 'rejected'` is a `Status` enum that hasn't been written yet. Write it. Delete the comment.
 
-<Tabs items={['TypeScript', 'Rust']}>
+<Tabs items={['TypeScript', 'Rust', 'Python']}>
   <Tab value="TypeScript">
   ```typescript
   // Before: comment explains the code
   function process(order: Order) {
     // Can only process if payment is confirmed and stock is reserved
     if (order.paymentStatus === 'confirmed' && order.stockStatus === 'reserved') {
-      // Mark as processing
       order.status = 'processing';
-      // Send to fulfillment
       fulfillment.dispatch(order);
     }
   }
@@ -125,9 +129,7 @@ Most explanatory comments dissolve when you apply techniques from the rest of th
       if order.payment_status == PaymentStatus::Confirmed
           && order.stock_status == StockStatus::Reserved
       {
-          // Mark as processing
           order.status = OrderStatus::Processing;
-          // Send to fulfillment
           fulfillment::dispatch(order);
       }
   }
@@ -135,12 +137,36 @@ Most explanatory comments dissolve when you apply techniques from the rest of th
   // After: code explains itself
   struct ReadyOrder {
       id: OrderId,
-      // only constructible after payment + stock checks pass
+      payment_status: PaymentStatus, // Confirmed
+      stock_status: StockStatus,     // Reserved
   }
 
   fn dispatch_to_fulfillment(order: ReadyOrder) {
       fulfillment::dispatch(order);
   }
+  ```
+  </Tab>
+  <Tab value="Python">
+  ```python
+  # Before: comment explains the code
+  def process(order: Order) -> None:
+      # Can only process if payment is confirmed and stock is reserved
+      if order.payment_status == "confirmed" and order.stock_status == "reserved":
+          order.status = "processing"
+          fulfillment.dispatch(order)
+
+
+  # After: code explains itself
+  @dataclass
+  class ReadyOrder:
+      id: OrderId
+      payment_status: Literal["confirmed"]
+      stock_status: Literal["reserved"]
+
+
+  def dispatch_to_fulfillment(order: ReadyOrder) -> None:
+      order.status = "processing"
+      fulfillment.dispatch(order)
   ```
   </Tab>
 </Tabs>

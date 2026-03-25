@@ -5,25 +5,18 @@ description: Your structs are your architecture. Get them wrong and you're debug
 
 <Principle>Obsess over your data structures, not your algorithms. Structs are the load-bearing walls of your program. Get them right and everything else falls into place. Get them wrong and you're debugging forever.</Principle>
 
-You already know this works. You use `Vec` every day without thinking about pointer arithmetic or reallocation strategies. You use `HashMap` without once caring about the collision resolution function. Nobody reimplements these. That's the point. The whole point. Your job is to build the same thing for your domain.
+You already know this works. You use `HashMap` every day without once caring about the collision resolution function or bucket layout. You use `Array` without thinking about memory allocation. Nobody reimplements these. That's the point. The whole point. Your job is to build the same thing for your domain.
 
 <Excalidraw>
 ```mermaid
-graph TD
-    A[Raw Complexity] --> B[Struct with a clean interface]
-    B --> C[Callers think in your domain]
+graph LR
+    A[HashMap internals] --> B[HashMap] --> C["get · set · has"]
+    D[Your internals] --> E[GPSCoordinates] --> F["distanceTo · bearing"]
 
-    D[Vec internals] --> E[push, pop, map, filter]
-    F[HashMap internals] --> G[get, set, has]
-    H[GPSCoordinates internals] --> I[distanceTo, bearing, isNear]
-
-    A -.-> J[Memory layout, reallocation, hash collisions]
-    B --> K[None of that leaks out]
-
-    style B green
-    style C green
-    style K green
-    style J red
+    class A red
+    class D red
+    class C green
+    class F green
 ```
 </Excalidraw>
 
@@ -41,7 +34,7 @@ The fix was ten lines. The fix was `GPSCoordinates`.
 
 ## The Before
 
-<Tabs items={['TypeScript', 'Rust']}>
+<Tabs items={['TypeScript', 'Rust', 'Python']}>
 <Tab value="TypeScript">
 ```typescript
 // Scattered across 12 files. Written 12 times.
@@ -57,8 +50,6 @@ function calculateDistance(
   // ... 10 more lines of Haversine
 }
 
-// Every call site has to remember the order.
-// Every call site has to remember the order.
 // Every call site has to remember the order.
 calculateDistance(userLat, userLon, storeLat, storeLon);
 // Was it user first or store first?
@@ -86,11 +77,31 @@ calculate_distance(user_lat, user_lon, store_lat, store_lon);
 // Good luck.
 ```
 </Tab>
+<Tab value="Python">
+```python
+# Scattered across 12 files. Written 12 times.
+def calculate_distance(
+    lat1: float,
+    lon1: float,
+    lat2: float,
+    lon2: float,
+) -> float:
+    # Haversine formula, copy-pasted
+    r = 6371.0
+    # ... 10 more lines
+
+# Every call site guesses the order.
+calculate_distance(user_lat, user_lon, store_lat, store_lon)
+# Is that right? Check the signature.
+# The signature is four floats.
+# Good luck.
+```
+</Tab>
 </Tabs>
 
 ## The After
 
-<Tabs items={['TypeScript', 'Rust']}>
+<Tabs items={['TypeScript', 'Rust', 'Python']}>
 <Tab value="TypeScript">
 ```typescript
 class GPSCoordinates {
@@ -101,20 +112,13 @@ class GPSCoordinates {
 
   distanceTo(other: GPSCoordinates): Distance {
     // Haversine lives here. One place. Forever.
-    const R = 6371;
-    const dLat = toRad(other.latitude - this.latitude);
     // ...
     return Distance.fromKilometers(d);
-  }
-
-  isNear(other: GPSCoordinates, radius: Distance): boolean {
-    return this.distanceTo(other).lessThan(radius);
   }
 }
 
 // Call sites cannot get this wrong.
 const userLocation = new GPSCoordinates(37.7749, -122.4194);
-const storeLocation = new GPSCoordinates(37.7849, -122.4094);
 const distance = userLocation.distanceTo(storeLocation);
 ```
 </Tab>
@@ -130,16 +134,29 @@ impl GPSCoordinates {
         // Haversine lives here. One place. Forever.
         Distance::from_kilometers(d)
     }
-
-    fn is_near(&self, other: &GPSCoordinates, radius: Distance) -> bool {
-        self.distance_to(other) < radius
-    }
 }
 
 // Call sites cannot get this wrong.
 let user_location = GPSCoordinates { latitude: 37.7749, longitude: -122.4194 };
-let store_location = GPSCoordinates { latitude: 37.7849, longitude: -122.4094 };
 let distance = user_location.distance_to(&store_location);
+```
+</Tab>
+<Tab value="Python">
+```python
+@dataclass(frozen=True)
+class GPSCoordinates:
+    latitude: float
+    longitude: float
+
+    def distance_to(self, other: GPSCoordinates) -> Distance:
+        # Haversine lives here. One place. Forever.
+        # ...
+        return Distance.from_kilometers(d)
+
+
+# Call sites cannot get this wrong.
+user_location = GPSCoordinates(latitude=37.7749, longitude=-122.4194)
+distance = user_location.distance_to(store_location)
 ```
 </Tab>
 </Tabs>
@@ -196,15 +213,15 @@ graph TD
     B --> D[PremiumCustomer]
     C --> E[Manager]
 
-    F[Touch Human] -.->|Breaks| B
+    F(Touch Human) -.->|Breaks| B
     F -.->|Breaks| C
     F -.->|Breaks| D
     F -.->|Breaks| E
 
     G[Every change is a grenade]
 
-    style F red
-    style G red
+    class F red
+    class G red
 ```
 </Excalidraw>
 
@@ -225,113 +242,58 @@ graph LR
     G[Employee] --> A
     G --> H[EmploymentDetails]
 
-    I[Change BillingInfo] -.->|Only affects| C
+    I(Change BillingInfo) -.->|Only affects| C
 
-    style I green
+    class I green
 ```
 </Excalidraw>
 
-<Tabs items={['TypeScript', 'Rust']}>
+<Tabs items={['TypeScript', 'Rust', 'Python']}>
 <Tab value="TypeScript">
 ```typescript
-// ❌ The grenade
-class Human {
-  constructor(public name: string, public dateOfBirth: Date) {}
-  getAge(): number { /* ... */ }
-}
+// ❌ Touch Human and everything breaks. Someone is both? No answer.
+class Human { constructor(public name: string, public dateOfBirth: Date) {} }
+class Customer extends Human { constructor(name: string, dob: Date, public customerId: CustomerId) { super(name, dob); } }
+class Employee extends Human { constructor(name: string, dob: Date, public employeeId: EmployeeId) { super(name, dob); } }
 
-class Customer extends Human {
-  constructor(name: string, dateOfBirth: Date, public customerId: CustomerId) {
-    super(name, dateOfBirth);
-  }
-}
-
-class Employee extends Human {
-  constructor(name: string, dateOfBirth: Date, public employeeId: EmployeeId) {
-    super(name, dateOfBirth);
-  }
-}
-
-// What if someone is both? What if Human needs to change?
-// These questions don't have good answers.
-
-// ✅ Composition. Each piece is independent.
-type PersonalInfo = {
-  name: string;
-  dateOfBirth: Date;
-};
-
-type CustomerDetails = {
-  customerId: CustomerId;
-  accountCreated: Date;
-  loyaltyPoints: number;
-};
-
-type EmployeeDetails = {
-  employeeId: EmployeeId;
-  hireDate: Date;
-  department: string;
-};
-
-type Customer = {
-  personal: PersonalInfo;
-  customer: CustomerDetails;
-};
-
-type Employee = {
-  personal: PersonalInfo;
-  employee: EmployeeDetails;
-};
-
-// Someone is both? Easy.
-type CustomerAndEmployee = {
-  personal: PersonalInfo;
-  customer: CustomerDetails;
-  employee: EmployeeDetails;
-};
+// ✅ Composition — pieces are independent, combinations are free
+type Customer = { personal: PersonalInfo; customer: CustomerDetails };
+type Employee = { personal: PersonalInfo; employee: EmployeeDetails };
+type CustomerAndEmployee = { personal: PersonalInfo; customer: CustomerDetails; employee: EmployeeDetails };
 ```
 </Tab>
 <Tab value="Rust">
 ```rust
-// Rust doesn't have inheritance. This is not an accident.
-// The language made the decision for you.
+// Rust has no inheritance. This is not an accident.
 
-// ✅ Composition
-struct PersonalInfo {
-    name: String,
-    date_of_birth: Date,
-}
-
-struct CustomerDetails {
-    customer_id: CustomerId,
-    account_created: Date,
-    loyalty_points: u32,
-}
-
-struct EmployeeDetails {
-    employee_id: EmployeeId,
-    hire_date: Date,
-    department: String,
-}
-
-struct Customer {
-    personal: PersonalInfo,
-    customer: CustomerDetails,
-}
-
-struct Employee {
-    personal: PersonalInfo,
-    employee: EmployeeDetails,
-}
-
-struct CustomerAndEmployee {
-    personal: PersonalInfo,
-    customer: CustomerDetails,
-    employee: EmployeeDetails,
-}
+// ✅ Composition — pieces are independent, combinations are free
+struct Customer { personal: PersonalInfo, customer: CustomerDetails }
+struct Employee { personal: PersonalInfo, employee: EmployeeDetails }
+struct CustomerAndEmployee { personal: PersonalInfo, customer: CustomerDetails, employee: EmployeeDetails }
 
 // Change CustomerDetails. Only Customer and CustomerAndEmployee are affected.
 // The blast radius is exactly what you'd expect.
+```
+</Tab>
+<Tab value="Python">
+```python
+# ❌ Touch Human and everything breaks. Someone is both? No answer.
+class Customer(Human):
+    def __init__(self, name: str, dob: date, customer_id: CustomerId) -> None:
+        super().__init__(name, dob)
+        self.customer_id = customer_id
+
+# ✅ Composition — pieces are independent, combinations are free
+@dataclass
+class Customer:
+    personal: PersonalInfo
+    customer: CustomerDetails
+
+@dataclass
+class CustomerAndEmployee:
+    personal: PersonalInfo
+    customer: CustomerDetails
+    employee: EmployeeDetails
 ```
 </Tab>
 </Tabs>

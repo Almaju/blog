@@ -85,6 +85,7 @@ Back to accumulating files. Not migration files, schema files. I traded one arch
 
 I knew I could delete old schema files when I was done with them. But when am I done with them? When every production database has passed through that version? How do I track that? I had no idea.
 
+<div className="max-w-sm mx-auto">
 <Excalidraw>
 ```mermaid
 graph TD
@@ -95,9 +96,15 @@ graph TD
     E --> F{When can I delete them?}
     F --> G[No idea]
 
+    class A blue
+    class C blue
+    class E blue
+    class B green
+    class D green
     class G red
 ```
 </Excalidraw>
+</div>
 
 Going in circles.
 
@@ -121,6 +128,10 @@ graph LR
     subgraph "you only maintain this"
         C3
     end
+
+    class C1 yellow
+    class C2 yellow
+    class C3 green
 ```
 </Excalidraw>
 
@@ -174,6 +185,9 @@ graph TD
     G -->|Match| H[Pass]
     G -->|Mismatch| I[Fail]
 
+    class A blue
+    class E blue
+    class G blue
     class H green
     class I red
 ```

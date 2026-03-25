@@ -34,7 +34,9 @@ graph TD
     H --> I[Returns null only if email is absent]
     I --> J[You tested your code]
 
+    class A orange
     class E red
+    class F green
     class J green
 ```
 </Excalidraw>
@@ -45,7 +47,7 @@ Mocks test your assumptions. Real implementations test your code. Those are not 
 
 The alternative is more work upfront. Build a real in-memory implementation of your dependency — one that has actual logic behind it. A `MemDatabase` that stores rows in a hash map and enforces constraints. It lives alongside your code permanently. It's not a test artifact. It's a lightweight implementation that happens to be fast and in-process.
 
-<Tabs items={['TypeScript', 'Rust']}>
+<Tabs items={['TypeScript', 'Rust', 'Python']}>
 <Tab value="TypeScript">
 ```typescript
 // The interface your code depends on
@@ -114,6 +116,36 @@ impl Database for MemDatabase {
 }
 ```
 </Tab>
+<Tab value="Python">
+```python
+import uuid
+from typing import Protocol
+
+# The Protocol your code depends on
+class Database(Protocol):
+    async def find_user_by_email(self, email: str) -> User | None: ...
+    async def insert_user(self, user: NewUser) -> User: ...
+
+# The real substitute. Tests your code.
+class MemDatabase:
+    def __init__(self) -> None:
+        self._users: dict[str, User] = {}
+
+    async def find_user_by_email(self, email: str) -> User | None:
+        return next(
+            (u for u in self._users.values() if u.email == email),
+            None,
+        )
+
+    async def insert_user(self, user: NewUser) -> User:
+        existing = await self.find_user_by_email(user.email)
+        if existing is not None:
+            raise DuplicateEmailError(f"Email already exists: {user.email}")
+        created = User(id=str(uuid.uuid4()), **vars(user))
+        self._users[created.id] = created
+        return created
+```
+</Tab>
 </Tabs>
 
 Now your tests enforce the uniqueness constraint. They catch the duplicate insert. They reflect what the database actually does, because the in-memory implementation has the same rules, just without the network round-trip.
@@ -126,21 +158,9 @@ Some things are genuinely hard to test: the clock, random number generators, ext
 
 The distinction matters. A mock is a lie you inject to make an assertion easier. An injectable dependency is a real design decision that makes your code more flexible.
 
-<Tabs items={['TypeScript', 'Rust']}>
+<Tabs items={['TypeScript', 'Rust', 'Python']}>
 <Tab value="TypeScript">
 ```typescript
-// Untestable: clock baked in
-class SessionService {
-  createSession(userId: string): Session {
-    return {
-      userId,
-      createdAt: new Date(),         // What time is "now" in a test?
-      expiresAt: new Date(Date.now() + 3600_000),
-    };
-  }
-}
-
-// Testable: clock injected
 interface Clock {
   now(): Date;
 }
@@ -150,21 +170,12 @@ class SessionService {
 
   createSession(userId: string): Session {
     const now = this.clock.now();
-    return {
-      userId,
-      createdAt: now,
-      expiresAt: new Date(now.getTime() + 3600_000),
-    };
+    return { userId, createdAt: now, expiresAt: new Date(now.getTime() + 3600_000) };
   }
 }
 
-// Real clock for production
-const realClock: Clock = { now: () => new Date() };
-
-// Fixed clock for tests
+// Fixed clock makes the test deterministic
 const fixedClock: Clock = { now: () => new Date("2024-01-15T12:00:00Z") };
-
-// The test is now deterministic
 const session = new SessionService(fixedClock).createSession("user-1");
 assert.equal(session.expiresAt.toISOString(), "2024-01-15T13:00:00.000Z");
 ```
@@ -175,38 +186,53 @@ trait Clock: Send + Sync {
     fn now(&self) -> DateTime<Utc>;
 }
 
-struct SystemClock;
-impl Clock for SystemClock {
-    fn now(&self) -> DateTime<Utc> { Utc::now() }
-}
-
 struct FixedClock(DateTime<Utc>);
 impl Clock for FixedClock {
     fn now(&self) -> DateTime<Utc> { self.0 }
 }
 
-struct SessionService<C: Clock> {
-    clock: C,
-}
+struct SessionService<C: Clock> { clock: C }
 
 impl<C: Clock> SessionService<C> {
     fn create_session(&self, user_id: &str) -> Session {
         let now = self.clock.now();
-        Session {
-            user_id: user_id.to_string(),
-            created_at: now,
-            expires_at: now + Duration::hours(1),
-        }
+        Session { user_id: user_id.to_string(), created_at: now, expires_at: now + Duration::hours(1) }
     }
 }
 
 #[test]
 fn session_expires_one_hour_after_creation() {
     let clock = FixedClock(Utc.with_ymd_and_hms(2024, 1, 15, 12, 0, 0).unwrap());
-    let service = SessionService { clock };
-    let session = service.create_session("user-1");
+    let session = SessionService { clock }.create_session("user-1");
     assert_eq!(session.expires_at.hour(), 13);
 }
+```
+</Tab>
+<Tab value="Python">
+```python
+from datetime import datetime, timezone, timedelta
+from typing import Protocol
+
+class Clock(Protocol):
+    def now(self) -> datetime: ...
+
+class FixedClock:
+    def __init__(self, at: datetime) -> None:
+        self._at = at
+    def now(self) -> datetime:
+        return self._at
+
+class SessionService:
+    def __init__(self, clock: Clock) -> None:
+        self._clock = clock
+    def create_session(self, user_id: str) -> Session:
+        now = self._clock.now()
+        return Session(user_id=user_id, created_at=now, expires_at=now + timedelta(hours=1))
+
+def test_session_expires_one_hour_after_creation() -> None:
+    fixed = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+    session = SessionService(FixedClock(fixed)).create_session("user-1")
+    assert session.expires_at.hour == 13
 ```
 </Tab>
 </Tabs>
@@ -239,7 +265,11 @@ graph TD
     I --> J[Refactor code]
     J --> K[Repeat]
 
+    class A blue
+    class D green
     class E green
+    class F orange
+    class H orange
     class K red
 ```
 </Excalidraw>

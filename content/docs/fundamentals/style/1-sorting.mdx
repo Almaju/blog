@@ -17,18 +17,18 @@ Sort alphabetically. Every time. Object properties, table columns, function para
 
 Developer A builds a struct:
 
-<Tabs items={['TypeScript', 'Rust']}>
+<Tabs items={['TypeScript', 'Rust', 'Python']}>
 <Tab value="TypeScript">
 ```typescript
 // Developer A's "logical" order
 interface User {
   id: string;           // Primary key goes first, obviously
-  email: string;        // Main identifier
-  name: string;         // Important info
-  role: UserRole;       // Important info
+  email: string;
+  name: string;
+  role: UserRole;
   createdAt: Date;      // Metadata at the end
-  updatedAt: Date;      // Metadata at the end
-  lastLoginAt?: Date;   // Optional metadata last
+  updatedAt: Date;
+  lastLoginAt?: Date;
 }
 ```
 </Tab>
@@ -37,13 +37,27 @@ interface User {
 // Developer A's "logical" order
 struct User {
     id: String,           // Primary key goes first, obviously
-    email: String,        // Main identifier
-    name: String,         // Important info
-    role: UserRole,       // Important info
+    email: String,
+    name: String,
+    role: UserRole,
     created_at: DateTime, // Metadata at the end
-    updated_at: DateTime, // Metadata at the end
-    last_login_at: Option<DateTime>, // Optional metadata last
+    updated_at: DateTime,
+    last_login_at: Option<DateTime>,
 }
+```
+</Tab>
+<Tab value="Python">
+```python
+# Developer A's "logical" order
+@dataclass
+class User:
+    id: str              # Primary key goes first, obviously
+    email: str
+    name: str
+    role: UserRole
+    created_at: datetime # Metadata at the end
+    updated_at: datetime
+    last_login_at: datetime | None = None
 ```
 </Tab>
 </Tabs>
@@ -52,10 +66,9 @@ Developer A is proud of this. There's a logic. The logic lives entirely inside D
 
 Developer B adds a field:
 
-<Tabs items={['TypeScript', 'Rust']}>
+<Tabs items={['TypeScript', 'Rust', 'Python']}>
 <Tab value="TypeScript">
 ```typescript
-// Developer B adds phone number
 interface User {
   id: string;
   email: string;
@@ -70,7 +83,6 @@ interface User {
 </Tab>
 <Tab value="Rust">
 ```rust
-// Developer B adds phone number
 struct User {
     id: String,
     email: String,
@@ -83,13 +95,27 @@ struct User {
 }
 ```
 </Tab>
+<Tab value="Python">
+```python
+@dataclass
+class User:
+    id: str
+    email: str
+    name: str
+    role: UserRole
+    created_at: datetime
+    updated_at: datetime
+    last_login_at: datetime | None = None
+    phone_number: str | None = None  # Where does this go?
+```
+</Tab>
 </Tabs>
 
 Developer B doesn't know the system. Is `phoneNumber` important like `email`, or optional metadata like `lastLoginAt`? No idea. So they tack it at the bottom. Safe move. Don't disturb the order. Don't own the decision. Don't make enemies.
 
 Six months later:
 
-<Tabs items={['TypeScript', 'Rust']}>
+<Tabs items={['TypeScript', 'Rust', 'Python']}>
 <Tab value="TypeScript">
 ```typescript
 // The inevitable chaos
@@ -128,6 +154,26 @@ struct User {
     avatar_url: Option<String>,
     bio: Option<String>,
 }
+```
+</Tab>
+<Tab value="Python">
+```python
+# The inevitable chaos
+@dataclass
+class User:
+    id: str
+    email: str
+    name: str
+    role: UserRole
+    created_at: datetime
+    updated_at: datetime
+    last_login_at: datetime | None = None
+    phone_number: str | None = None
+    department: str = ""
+    is_active: bool = True
+    preferences: UserPreferences | None = None
+    avatar_url: str | None = None
+    bio: str | None = None
 ```
 </Tab>
 </Tabs>
@@ -153,8 +199,13 @@ graph TD
     F --> G[6 devs later]
     G --> H[Structure is pure sediment]
 
-    class H red
+    class B blue
+    class C orange
+    class D orange
     class E red
+    class F red
+    class G yellow
+    class H red
 ```
 </Excalidraw>
 
@@ -162,7 +213,7 @@ Six developers. Six mental models. Zero documentation. The result is entropy bak
 
 Now watch what happens with alphabetical order:
 
-<Tabs items={['TypeScript', 'Rust']}>
+<Tabs items={['TypeScript', 'Rust', 'Python']}>
 <Tab value="TypeScript">
 ```typescript
 // Alphabetically sorted
@@ -177,7 +228,6 @@ interface User {
   lastLoginAt?: Date;
   name: string;
   phoneNumber?: string;
-  preferences: UserPreferences;
   role: UserRole;
   updatedAt: Date;
 }
@@ -197,10 +247,28 @@ struct User {
     last_login_at: Option<DateTime>,
     name: String,
     phone_number: Option<String>,
-    preferences: UserPreferences,
     role: UserRole,
     updated_at: DateTime,
 }
+```
+</Tab>
+<Tab value="Python">
+```python
+# Alphabetically sorted
+@dataclass
+class User:
+    avatar_url: str | None
+    bio: str | None
+    created_at: datetime
+    department: str
+    email: str
+    id: str
+    is_active: bool
+    last_login_at: datetime | None
+    name: str
+    phone_number: str | None
+    role: UserRole
+    updated_at: datetime
 ```
 </Tab>
 </Tabs>
@@ -217,25 +285,19 @@ You can break the rule. You must document the exception.
 
 **Class methods with visibility grouping:**
 
-<Tabs items={['TypeScript', 'Rust']}>
+<Tabs items={['TypeScript', 'Rust', 'Python']}>
 <Tab value="TypeScript">
 ```typescript
 /**
- * Method ordering convention:
- * 1. Constructor
- * 2. Public methods (alphabetical)
- * 3. Private methods (alphabetical)
+ * Method ordering: constructor, then public (alpha), then private (alpha).
  */
 class UserRepository {
   constructor(private db: Database) {}
 
-  // Public methods (alphabetical)
   async createUser(data: UserData): Promise<User> {}
   async deleteUser(id: string): Promise<void> {}
   async findUserById(id: string): Promise<User | null> {}
-  async updateUser(id: string, data: Partial<UserData>): Promise<User> {}
 
-  // Private methods (alphabetical)
   private async executeQuery(sql: string): Promise<any> {}
   private validateUserData(data: UserData): void {}
 }
@@ -243,25 +305,32 @@ class UserRepository {
 </Tab>
 <Tab value="Rust">
 ```rust
-/// Method ordering convention:
-/// 1. Constructor/new
-/// 2. Public methods (alphabetical)
-/// 3. Private methods (alphabetical)
+/// Method ordering: constructor, then pub (alpha), then private (alpha).
 impl UserRepository {
-    pub fn new(db: Database) -> Self {
-        Self { db }
-    }
+    pub fn new(db: Database) -> Self { Self { db } }
 
-    // Public methods (alphabetical)
     pub async fn create_user(&self, data: UserData) -> Result<User> {}
     pub async fn delete_user(&self, id: &str) -> Result<()> {}
     pub async fn find_user_by_id(&self, id: &str) -> Result<Option<User>> {}
-    pub async fn update_user(&self, id: &str, data: UserData) -> Result<User> {}
 
-    // Private methods (alphabetical)
     async fn execute_query(&self, sql: &str) -> Result<QueryResult> {}
     fn validate_user_data(&self, data: &UserData) -> Result<()> {}
 }
+```
+</Tab>
+<Tab value="Python">
+```python
+# Method ordering: __init__, then public (alpha), then private (alpha).
+class UserRepository:
+    def __init__(self, db: Database) -> None:
+        self._db = db
+
+    async def create_user(self, data: UserData) -> User: ...
+    async def delete_user(self, id: str) -> None: ...
+    async def find_user_by_id(self, id: str) -> User | None: ...
+
+    async def _execute_query(self, sql: str) -> QueryResult: ...
+    def _validate_user_data(self, data: UserData) -> None: ...
 ```
 </Tab>
 </Tabs>
@@ -342,13 +411,15 @@ graph TD
     F --> G
 
     class C green
+    class E green
+    class F green
     class G green
 ```
 </Excalidraw>
 
 The best outcome is you stop making this decision at all:
 
-<Tabs items={['TypeScript', 'Rust']}>
+<Tabs items={['TypeScript', 'Rust', 'Python']}>
 <Tab value="TypeScript">
 ```json
 // .eslintrc.json
@@ -372,6 +443,16 @@ reorder_modules = true
 # Consider using cargo-machete or custom lints
 ```
 </Tab>
+<Tab value="Python">
+```toml
+# pyproject.toml
+[tool.ruff]
+select = ["I"]  # isort: sorts and groups imports automatically
+
+[tool.ruff.isort]
+force-sort-within-sections = true
+```
+</Tab>
 </Tabs>
 
 When the formatter handles it, you don't think about it. That's the goal. A rule nobody has to enforce is a rule nobody has to argue about.
@@ -382,10 +463,10 @@ When the formatter handles it, you don't think about it. That's the goal. A rule
 
 If semantic relationships matter, make them explicit in your architecture. Use types, modules, and clear naming. Don't rely on spatial proximity to carry meaning — proximity is invisible to the compiler and invisible to anyone who didn't write the code.
 
-<Tabs items={['TypeScript', 'Rust']}>
+<Tabs items={['TypeScript', 'Rust', 'Python']}>
 <Tab value="TypeScript">
 ```typescript
-// Trying to show relationships through ordering
+// Bad: proximity implies relationship
 interface User {
   firstName: string;
   lastName: string;   // "These go together!"
@@ -393,17 +474,9 @@ interface User {
   phone: string;      // "These go together!"
 }
 
-// Make relationships explicit through types
-interface UserName {
-  first: string;
-  last: string;
-}
-
-interface UserContact {
-  email: string;
-  phone: string;
-}
-
+// Good: types make the relationship explicit
+interface UserName { first: string; last: string; }
+interface UserContact { email: string; phone: string; }
 interface User {
   contact: UserContact;  // Alphabetical. Relationship explicit.
   name: UserName;
@@ -412,29 +485,48 @@ interface User {
 </Tab>
 <Tab value="Rust">
 ```rust
-// Trying to show relationships through ordering
+// Bad: proximity implies relationship
 struct User {
     first_name: String,
-    last_name: String,   // "These go together!"
+    last_name: String,  // "These go together!"
     email: String,
-    phone: String,       // "These go together!"
+    phone: String,      // "These go together!"
 }
 
-// Make relationships explicit through types
-struct UserName {
-    first: String,
-    last: String,
-}
-
-struct UserContact {
-    email: String,
-    phone: String,
-}
-
+// Good: types make the relationship explicit
+struct UserName { first: String, last: String }
+struct UserContact { email: String, phone: String }
 struct User {
-    contact: UserContact,  // Alphabetical. Relationship explicit.
+    contact: UserContact, // Alphabetical. Relationship explicit.
     name: UserName,
 }
+```
+</Tab>
+<Tab value="Python">
+```python
+# Bad: proximity implies relationship
+@dataclass
+class User:
+    first_name: str
+    last_name: str  # "These go together!"
+    email: str
+    phone: str      # "These go together!"
+
+# Good: types make the relationship explicit
+@dataclass
+class UserName:
+    first: str
+    last: str
+
+@dataclass
+class UserContact:
+    email: str
+    phone: str
+
+@dataclass
+class User:
+    contact: UserContact  # Alphabetical. Relationship explicit.
+    name: UserName
 ```
 </Tab>
 </Tabs>

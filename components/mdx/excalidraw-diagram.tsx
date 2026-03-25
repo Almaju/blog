@@ -123,7 +123,9 @@ const ExcalidrawInner = dynamic(
       const chartWithColors = `${chart}
 classDef green fill:transparent,stroke:#2f9e44,color:#2f9e44
 classDef red fill:transparent,stroke:#e03131,color:#e03131
-classDef yellow fill:transparent,stroke:#f08c00,color:#f08c00`;
+classDef yellow fill:transparent,stroke:#f08c00,color:#f08c00
+classDef blue fill:transparent,stroke:#1971c2,color:#1971c2
+classDef orange fill:transparent,stroke:#e8590c,color:#e8590c`;
 
       useEffect(() => {
         parseMermaidToExcalidraw(chartWithColors)
