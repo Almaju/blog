@@ -68,7 +68,7 @@ Four names you'd say out loud. Four names that don't exist in your domain. Pick 
 <Tabs items={['TypeScript', 'Rust', 'Python']}>
 <Tab value="TypeScript">
 ```typescript
-// ❌ The Repository Way — behavior scattered across invented types
+// ❌ The Repository Way: behavior scattered across invented types
 class UserRepository {
   async ban(userId: string): Promise<void> {
     await this.db.query("UPDATE users SET banned_at = NOW() WHERE id = ?", userId);
@@ -87,12 +87,12 @@ class User {
   }
 }
 
-// user.ban().save(store) — one place to look, one way to do it
+// user.ban().save(store): one place to look, one way to do it
 ```
 </Tab>
 <Tab value="Rust">
 ```rust
-// ❌ The Repository Way — behavior scattered across invented types
+// ❌ The Repository Way: behavior scattered across invented types
 impl UserRepository {
     async fn ban(&self, user_id: &str) -> Result<(), Error> {
         self.db.query("UPDATE users SET banned_at = NOW() WHERE id = ?", user_id).await
@@ -111,12 +111,12 @@ impl User {
     }
 }
 
-// user.ban().save(&store).await — one place, one way
+// user.ban().save(&store).await: one place, one way
 ```
 </Tab>
 <Tab value="Python">
 ```python
-# ❌ The Repository Way — behavior scattered across invented types
+# ❌ The Repository Way: behavior scattered across invented types
 class UserRepository:
     def ban(self, user_id: str) -> None:
         db.query("UPDATE users SET banned_at = NOW() WHERE id = ?", user_id)
@@ -136,7 +136,7 @@ class User:
     def save(self, store: "Store") -> Result[None, SaveError]:
         return store.persist(self)
 
-# user.ban().save(store) — one place to look, one way to do it
+# user.ban().save(store): one place to look, one way to do it
 ```
 </Tab>
 </Tabs>
@@ -215,9 +215,9 @@ Everything else should make you pause. Write the struct that makes it a method.
 
 **Genuinely stateless math.** `min`, `max`, `clamp`, `lerp`. No state, no subject, no home. Keep them free.
 
-**Top-level orchestration.** `App`, `Program`, `RestApi`. Something has to hold everything together at the very top. Calling it `App` is honest. The rule targets the middle layer — where `UserManager`, `RequestHandler`, and `DataService` hide unclear thinking. At the top, something genuinely orchestrates everything. That's fine. Name it `App`.
+**Top-level orchestration.** `App`, `Program`, `RestApi`. Something has to hold everything together at the very top. Calling it `App` is honest. The rule targets the middle layer: where `UserManager`, `RequestHandler`, and `DataService` hide unclear thinking. At the top, something genuinely orchestrates everything. That's fine. Name it `App`.
 
-**Cross-type operations.** Sometimes an operation spans two types and belongs to neither. `Transaction::commit(store, orders)` — the transaction owns the commit, not the store or the orders. The test: would it be weird to put it on either type? If yes, the third thing that's orchestrating both is probably the right home.
+**Cross-type operations.** Sometimes an operation spans two types and belongs to neither. `Transaction::commit(store, orders)`: the transaction owns the commit, not the store or the orders. The test: would it be weird to put it on either type? If yes, the third thing that's orchestrating both is probably the right home.
 
 ## "Actually..."
 
@@ -225,7 +225,7 @@ Everything else should make you pause. Write the struct that makes it a method.
 
 In DDD, a Repository is a specific contract: it abstracts persistence behind a collection-like interface, and the domain is completely unaware of SQL. Most codebases don't implement that contract. They call something `UserRepository` because it touches the `users` table. That's a database accessor. Cargo-culting the name without the contract gives you the overhead of DDD with none of the benefits.
 
-If you're genuinely implementing the Repository pattern — domain objects unaware of persistence, repository hiding all SQL behind an interface — that's a real choice. Own it. Write down why. But that's not what most `*Repository` files are.
+If you're genuinely implementing the Repository pattern (domain objects unaware of persistence, repository hiding all SQL behind an interface), that's a real choice. Own it. Write down why. But that's not what most `*Repository` files are.
 
 <Objection>If everything goes on the struct, I'll end up with 30 methods.</Objection>
 

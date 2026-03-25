@@ -256,7 +256,7 @@ class Human { constructor(public name: string, public dateOfBirth: Date) {} }
 class Customer extends Human { constructor(name: string, dob: Date, public customerId: CustomerId) { super(name, dob); } }
 class Employee extends Human { constructor(name: string, dob: Date, public employeeId: EmployeeId) { super(name, dob); } }
 
-// ✅ Composition — pieces are independent, combinations are free
+// ✅ Composition: pieces are independent, combinations are free
 type Customer = { personal: PersonalInfo; customer: CustomerDetails };
 type Employee = { personal: PersonalInfo; employee: EmployeeDetails };
 type CustomerAndEmployee = { personal: PersonalInfo; customer: CustomerDetails; employee: EmployeeDetails };
@@ -266,7 +266,7 @@ type CustomerAndEmployee = { personal: PersonalInfo; customer: CustomerDetails; 
 ```rust
 // Rust has no inheritance. This is not an accident.
 
-// ✅ Composition — pieces are independent, combinations are free
+// ✅ Composition: pieces are independent, combinations are free
 struct Customer { personal: PersonalInfo, customer: CustomerDetails }
 struct Employee { personal: PersonalInfo, employee: EmployeeDetails }
 struct CustomerAndEmployee { personal: PersonalInfo, customer: CustomerDetails, employee: EmployeeDetails }
@@ -283,7 +283,7 @@ class Customer(Human):
         super().__init__(name, dob)
         self.customer_id = customer_id
 
-# ✅ Composition — pieces are independent, combinations are free
+# ✅ Composition: pieces are independent, combinations are free
 @dataclass
 class Customer:
     personal: PersonalInfo
@@ -328,7 +328,7 @@ Everything that represents a concept in your domain. `User`. `Email`. `Order`. `
 
 ---
 
-The Haversine formula, scattered across eight files. You discover the Earth's radius constant is wrong — someone used 6,378 km (equatorial radius) instead of 6,371 km (mean radius). How long does it take to find every copy? How confident are you that you found them all?
+The Haversine formula, scattered across eight files. You discover the Earth's radius constant is wrong: someone used 6,378 km (equatorial radius) instead of 6,371 km (mean radius). How long does it take to find every copy? How confident are you that you found them all?
 
 Not confident. You run the grep, you find eight matches, you fix eight files, you ship. Three months later someone finds a ninth. It was in a file nobody looked at because the function was named slightly differently.
 

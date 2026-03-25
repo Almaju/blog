@@ -297,7 +297,7 @@ Run this before your application starts: in an entrypoint script, a Dockerfile `
 
 ```bash
 #!/bin/bash
-# migrate.sh — run before the application starts
+# migrate.sh: run before the application starts
 
 LAST_COMMIT=$(psql -t -c "SELECT deployed_commit FROM deployment_state ORDER BY deployed_at DESC LIMIT 1" | xargs)
 

@@ -2,5 +2,5 @@
   "title": "Frontend",
   "description": "Frontend architecture and state management patterns",
   "root": true,
-  "pages": ["1-state"]
+  "pages": ["state"]
 }

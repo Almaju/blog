@@ -8,15 +8,15 @@ export default function Layout({ children }: LayoutProps<"/">) {
       links={[
         ...baseOptions().links!,
         {
-          url: "/docs/fundamentals/modeling/1-primitives",
+          url: "/docs/fundamentals/modeling/primitives",
           text: "Fundamentals",
         },
         {
-          url: "/docs/frontend/1-state",
+          url: "/docs/frontend/state",
           text: "Frontend",
         },
         {
-          url: "/docs/infrastructure/1-migrations",
+          url: "/docs/infrastructure/migrations",
           text: "Infrastructure",
         },
         {

@@ -9,7 +9,7 @@ description: Your tests are either fast or honest. Real in-memory implementation
 
 All tests passing. CI green. Deploy on a Friday afternoon, because nothing had ever broken before, and everything was tested.
 
-The unique constraint on `email` fired in production. Every test had mocked `db.findByEmail` to return `null` — meaning "no duplicate, go ahead." That's what the tests needed it to return to reach the assertion. The mock was configured to succeed. It always succeeded. It never knew what the database actually contained, because it wasn't a database. It was a `jest.fn()` with instructions.
+The unique constraint on `email` fired in production. Every test had mocked `db.findByEmail` to return `null`, meaning "no duplicate, go ahead." That's what the tests needed it to return to reach the assertion. The mock was configured to succeed. It always succeeded. It never knew what the database actually contained, because it wasn't a database. It was a `jest.fn()` with instructions.
 
 One unique constraint. Three hours of incident response. A revert. A postmortem with the word "mock" in it six times.
 
@@ -45,7 +45,7 @@ Mocks test your assumptions. Real implementations test your code. Those are not 
 
 ## Build a Real Substitute
 
-The alternative is more work upfront. Build a real in-memory implementation of your dependency — one that has actual logic behind it. A `MemDatabase` that stores rows in a hash map and enforces constraints. It lives alongside your code permanently. It's not a test artifact. It's a lightweight implementation that happens to be fast and in-process.
+The alternative is more work upfront. Build a real in-memory implementation of your dependency: one that has actual logic behind it. A `MemDatabase` that stores rows in a hash map and enforces constraints. It lives alongside your code permanently. It's not a test artifact. It's a lightweight implementation that happens to be fast and in-process.
 
 <Tabs items={['TypeScript', 'Rust', 'Python']}>
 <Tab value="TypeScript">
@@ -239,7 +239,7 @@ def test_session_expires_one_hour_after_creation() -> None:
 
 The bar for injection is this: would it be useful outside of tests? A `Clock` interface is useful in production. You can use it to freeze time in staging, to simulate midnight rollover in a demo, to replay historical scenarios. It belongs in the code.
 
-If the only reason it exists is to make an assertion easier, it's a smell. Extract the logic into a pure function instead. Pure functions take inputs, return outputs, have no dependencies — nothing to inject, nothing to mock, nothing to set up.
+If the only reason it exists is to make an assertion easier, it's a smell. Extract the logic into a pure function instead. Pure functions take inputs, return outputs, have no dependencies. Nothing to inject, nothing to mock, nothing to set up.
 
 ## Don't Write Tests on a Moving Target
 
@@ -249,7 +249,7 @@ The problem is the assumption underneath: that you know what you're building bef
 
 You don't. Requirements are fuzzy. You discover the right abstraction while implementing. The interface that seemed obvious at 9am is wrong by 2pm. You refactor. The tests you wrote at 9am either break or survive by being vague enough to pass anything, which means they weren't testing much.
 
-Test-first is correct exactly once: when you find a bug. At that moment, you have explicit requirements — the production behavior you observed, the input that triggered it, the output you got vs. the output you expected. Write the failing test. Fix it. You now have a regression test that reflects a real failure mode, not a hypothetical one.
+Test-first is correct exactly once: when you find a bug. At that moment, you have explicit requirements: the production behavior you observed, the input that triggered it, the output you got vs. the output you expected. Write the failing test. Fix it. You now have a regression test that reflects a real failure mode, not a hypothetical one.
 
 <Excalidraw>
 ```mermaid
@@ -300,11 +300,11 @@ graph TD
 ```
 </Excalidraw>
 
-End-to-end tests have a place — login, checkout, the flows where a regression is catastrophic. Run them nightly, not on every PR. The moment they're in the critical path of a merge, they become the bottleneck everyone works around.
+End-to-end tests have a place: login, checkout, the flows where a regression is catastrophic. Run them nightly, not on every PR. The moment they're in the critical path of a merge, they become the bottleneck everyone works around.
 
 ## When This Doesn't Apply
 
-**Third-party integrations with no in-process alternative.** Stripe, Twilio, payment gateways — you can't run these in-memory. Write one narrow integration test at the adapter boundary. Wrap it in a `[integration]` tag and run it separately from your main suite. Don't skip it, but don't block merges on it either.
+**Third-party integrations with no in-process alternative.** Stripe, Twilio, payment gateways. You can't run these in-memory. Write one narrow integration test at the adapter boundary. Wrap it in a `[integration]` tag and run it separately from your main suite. Don't skip it, but don't block merges on it either.
 
 **Truly stateless pure functions.** If a function takes inputs and returns outputs with no dependencies, just call it in a test. No injection needed, no substitute needed, no setup. The test is three lines.
 
@@ -318,7 +318,7 @@ Yes. By about two hours, once per dependency. You'll spend more than two hours d
 
 <Objection>We need integration tests to be confident the system works end-to-end.</Objection>
 
-You need one integration test per boundary to confirm the adapter works. That's it. The end-to-end correctness of your system is what your unit tests are for — they cover every state, every error path, every edge case, in milliseconds, without infrastructure. Integration tests confirm wiring, not logic.
+You need one integration test per boundary to confirm the adapter works. That's it. The end-to-end correctness of your system is what your unit tests are for: they cover every state, every error path, every edge case, in milliseconds, without infrastructure. Integration tests confirm wiring, not logic.
 
 <Objection>TDD forces you to think about the interface before the implementation.</Objection>
 

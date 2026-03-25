@@ -118,7 +118,7 @@ A comment is a suggestion. Suggestions get ignored. Types don't:
 <Tabs items={['TypeScript', 'Rust', 'Python']}>
 <Tab value="TypeScript">
 ```typescript
-// ❌ Runtime validation everywhere — someone will forget
+// ❌ Runtime validation everywhere: someone will forget
 function calculateDiscount(price: number, percentage: number): number {
   if (price < 0) throw new Error("Price must be positive");
   if (percentage < 0 || percentage > 100) throw new Error("Percentage must be 0-100");
@@ -138,7 +138,7 @@ fn calculate_discount(price: f64, percentage: f64) -> f64 {
 </Tab>
 <Tab value="Python">
 ```python
-# ❌ Runtime validation everywhere — someone will forget
+# ❌ Runtime validation everywhere: someone will forget
 def calculate_discount(price: float, percentage: float) -> float:
     assert price >= 0, "Price must be positive"
     assert 0 <= percentage <= 100, "Invalid percentage"

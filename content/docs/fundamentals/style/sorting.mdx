@@ -461,7 +461,7 @@ When the formatter handles it, you don't think about it. That's the goal. A rule
 
 <Objection>Doesn't alphabetical ordering hide semantic relationships?</Objection>
 
-If semantic relationships matter, make them explicit in your architecture. Use types, modules, and clear naming. Don't rely on spatial proximity to carry meaning — proximity is invisible to the compiler and invisible to anyone who didn't write the code.
+If semantic relationships matter, make them explicit in your architecture. Use types, modules, and clear naming. Don't rely on spatial proximity to carry meaning. Proximity is invisible to the compiler and invisible to anyone who didn't write the code.
 
 <Tabs items={['TypeScript', 'Rust', 'Python']}>
 <Tab value="TypeScript">
@@ -543,7 +543,7 @@ No. Apply alphabetical ordering to all new code going forward. To any file you'r
 
 The mess didn't accumulate in a day. You're not fixing it in one either.
 
-<Objection>What about imports? Sometimes I group by source — stdlib, external, internal.</Objection>
+<Objection>What about imports? Sometimes I group by source: stdlib, external, internal.</Objection>
 
 That's a documented exception, and it's in most style guides. Grouping by source is fine. Within each group: alphabetical. You're not breaking the rule. You're applying it one layer down.
 

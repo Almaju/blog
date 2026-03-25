@@ -59,7 +59,7 @@ enum UserError {
 }
 
 fn get_user_by_id(id: &str) -> Result<User, UserError> {
-    // The type system makes errors first-class — you cannot ignore them
+    // The type system makes errors first-class: you cannot ignore them
 }
 ```
 </Tab>
@@ -146,7 +146,7 @@ try:
 except Exception:
     pass
 
-# Result Heaven — every failure is visible
+# Result Heaven: every failure is visible
 def get_comments_for_user(id: str) -> Result[list[Comment], AppError]:
     user_result = get_user_by_id(id)
     if isinstance(user_result, Err):
@@ -240,7 +240,7 @@ match err:
     case RateLimitError(retry_after=retry_after):
         await asyncio.sleep(retry_after)
     case ValidationError():
-        return Err(err)  # Not retryable — user needs to fix their input.
+        return Err(err)  # Not retryable: user needs to fix their input.
 ```
 </Tab>
 </Tabs>
@@ -369,11 +369,11 @@ Invariant violations that indicate programmer error. An index out of bounds afte
 <Tabs items={['TypeScript', 'Rust', 'Python']}>
 <Tab value="TypeScript">
 ```typescript
-// OK to throw — program can't run without these
+// OK to throw: program can't run without these
 const config = loadConfig();
 const db = await connectDatabase(config.dbUrl);
 
-// NOT OK to throw — return Result instead
+// NOT OK to throw: return Result instead
 function getUser(id: string): Result<User, NotFoundError> {
   const user = db.query("SELECT * FROM users WHERE id = ?", id);
   if (!user) return { type: "Err", err: { type: "NotFoundError", userId: id } };
@@ -383,11 +383,11 @@ function getUser(id: string): Result<User, NotFoundError> {
 </Tab>
 <Tab value="Rust">
 ```rust
-// OK to panic — program can't run without these
+// OK to panic: program can't run without these
 let config = load_config().expect("Config file required for startup");
 let db = connect_database(&config.db_url).expect("Cannot run without database");
 
-// NOT OK to panic — return Result instead
+// NOT OK to panic: return Result instead
 fn get_user(id: &str) -> Result<User, NotFoundError> {
     db.query("SELECT * FROM users WHERE id = ?", id)
         .ok_or(NotFoundError { user_id: id.to_string() })
@@ -396,11 +396,11 @@ fn get_user(id: &str) -> Result<User, NotFoundError> {
 </Tab>
 <Tab value="Python">
 ```python
-# OK to raise — program can't run without these
+# OK to raise: program can't run without these
 config = load_config()
 db = connect_database(config.db_url)
 
-# NOT OK to raise — return Result instead
+# NOT OK to raise: return Result instead
 def get_user(id: str) -> Result["User", NotFoundError]:
     user = db.query("SELECT * FROM users WHERE id = ?", id)
     if user is None:
@@ -421,7 +421,7 @@ If the library throws, wrap it at the boundary. One try-catch. Give it a type yo
 <Tabs items={['TypeScript', 'Rust', 'Python']}>
 <Tab value="TypeScript">
 ```typescript
-// Wrap throwing libraries at the door — one try-catch, typed result out
+// Wrap throwing libraries at the door: one try-catch, typed result out
 function safeFetch<T>(url: string): Result<T, NetworkError> {
   try {
     const data = await fetch(url).then(r => r.json());
@@ -444,7 +444,7 @@ fn safe_parse(s: &str) -> Result<Value, ParseError> {
 </Tab>
 <Tab value="Python">
 ```python
-# Wrap throwing libraries at the door — one try/except, typed result out
+# Wrap throwing libraries at the door: one try/except, typed result out
 def safe_fetch(url: str) -> Result[dict, NetworkError]:
     try:
         response = httpx.get(url)

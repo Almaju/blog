@@ -9,7 +9,7 @@ description: Dependencies should be obvious from reading the type signatures.
 
 You deployed at noon. Everything was fine. Then at 4pm your phone starts going off.
 
-The error is "failed to resolve dependency for UserService." Stack trace points into the DI container. Nothing useful. You dig through registration files. You stare at the decorator. Then you find it:
+The error is "failed to resolve dependency for ApiServer." Stack trace points into the DI container. Nothing useful. You dig through registration files. You stare at the decorator. Then you find it:
 
 ```typescript
 container.register("LOGER", Logger); // ← one letter off
@@ -58,14 +58,14 @@ Look at this class and tell me what it needs to run:
 <Tab value="TypeScript">
 ```typescript
 // The Lie: looks like no dependencies
-class UserService {
+class User {
   async getUser(id: string) {
     return Database.instance.query("..."); // Where did this come from?
   }
 }
 
 // The Truth: depends on Database
-class UserService {
+class User {
   constructor(private db: Database) {}
 
   async getUser(id: string) {
@@ -79,18 +79,18 @@ class UserService {
 // The Lie: invisible global state
 static DATABASE: OnceCell<Database> = OnceCell::new();
 
-struct UserService;
+struct User;
 
-impl UserService {
+impl User {
     async fn get_user(&self, id: &str) -> Result<User, Error> {
         DATABASE.get().unwrap().query("...").await // Hidden dependency
     }
 }
 
 // The Truth: explicit dependency
-struct UserService { db: Database }
+struct User { db: Database }
 
-impl UserService {
+impl User {
     async fn get_user(&self, id: &str) -> Result<User, Error> {
         self.db.query("...").await
     }
@@ -100,12 +100,12 @@ impl UserService {
 <Tab value="Python">
 ```python
 # The Lie: looks like no dependencies
-class UserService:
+class User:
     async def get_user(self, user_id: str):
         return await Database.instance.query("...")  # Where did this come from?
 
 # The Truth: depends on Database
-class UserService:
+class User:
     def __init__(self, db: Database) -> None:
         self._db = db
 
@@ -115,7 +115,7 @@ class UserService:
 </Tab>
 </Tabs>
 
-The first version looks simple. Zero constructor parameters. You can spin it up anywhere with `new UserService()` and it just works. Until you need to test it, or move it, or change what database it talks to. Then you find out it secretly depends on two global singletons you can't swap without touching every test in the suite.
+The first version looks simple. Zero constructor parameters. You can spin it up anywhere with `new User()` and it just works. Until you need to test it, or move it, or change what database it talks to. Then you find out it secretly depends on two global singletons you can't swap without touching every test in the suite.
 
 The second version has two constructor parameters. Exactly as complex as it actually is.
 
@@ -126,17 +126,17 @@ Two tests running in parallel both mutate the same singleton. Race condition. Fl
 <Tabs items={['TypeScript', 'Rust', 'Python']}>
 <Tab value="TypeScript">
 ```typescript
-// Singleton hell — shared mutable state
+// Singleton hell: shared mutable state
 test("creates user", async () => {
   Database.instance.setMode("test");
   await userService.create({ name: "Alice" });
   // Test running in parallel just changed the mode 💥
 });
 
-// Isolated — each test owns its instance
+// Isolated: each test owns its instance
 test("creates user", async () => {
   const db = new TestDatabase();
-  const service = new UserService(db);
+  const service = new User(db);
   await service.create({ name: "Alice" });
 });
 ```
@@ -153,22 +153,22 @@ async fn test_creates_user() {
 // Isolated
 #[tokio::test]
 async fn test_creates_user() {
-    let service = UserService::new(TestDatabase::new());
+    let service = User::new(TestDatabase::new());
     service.create(User { name: "Alice" }).await.unwrap();
 }
 ```
 </Tab>
 <Tab value="Python">
 ```python
-# Singleton hell — shared mutable state
+# Singleton hell: shared mutable state
 def test_creates_user():
     Database.instance.set_mode("test")
     user_service.create({"name": "Alice"})
     # Another test just changed the mode 💥
 
-# Isolated — each test owns its instance
+# Isolated: each test owns its instance
 def test_creates_user_isolated():
-    service = UserService(MemDatabase())
+    service = User(MemDatabase())
     service.create({"name": "Alice"})
 ```
 </Tab>
@@ -183,10 +183,10 @@ The sin is specific. Mutable state. Shared between tests. Invisible from the typ
 <Excalidraw>
 ```mermaid
 graph TD
-    A[UserService] -.->|Hidden| S[Singleton]
-    B[OrderService] -.->|Hidden| S
-    C[PaymentService] -.->|Hidden| S
-    D[EmailService] -.->|Hidden| S
+    A[User] -.->|Hidden| S[Singleton]
+    B[Order] -.->|Hidden| S
+    C[Payment] -.->|Hidden| S
+    D[Email] -.->|Hidden| S
 
     S --> E[Database]
     S --> F[Logger]
@@ -240,24 +240,24 @@ graph TD
 <Tabs items={['TypeScript', 'Rust', 'Python']}>
 <Tab value="TypeScript">
 ```typescript
-// DI Framework — errors at runtime
+// DI Framework: errors at runtime
 @Injectable()
-class UserService {
+class User {
   constructor(
     @Inject("DATABASE") private db: any, // ← type safety lost
     @Inject("LOGER") private logger: any, // ← typo, fails at runtime on Friday
   ) {}
 }
 
-// Explicit — errors at compile time
-class UserService {
+// Explicit: errors at compile time
+class User {
   constructor(
     private db: Database,
     private logger: Logger,
   ) {}
 }
 
-const userService = new UserService(db, logger);
+const userService = new User(db, logger);
 // ↑ wrong type? Compiler catches it immediately
 ```
 </Tab>
@@ -266,9 +266,9 @@ const userService = new UserService(db, logger);
 // Rust's type system makes DI frameworks unnecessary.
 // Dependencies go in the struct; the compiler checks everything.
 
-struct UserService { db: Database }
+struct User { db: Database }
 
-impl UserService {
+impl User {
     fn new(db: Database) -> Self { Self { db } }
 }
 // All checked at compile time
@@ -279,13 +279,13 @@ impl UserService {
 # Bad: DI frameworks add runtime magic with no type safety.
 # Good: explicit __init__, wired in main().
 
-class UserService:
+class User:
     def __init__(self, db: Database) -> None:
         self._db = db
 
 def main() -> None:
     db = Database(load_config().db_url)
-    user_service = UserService(db)
+    user_service = User(db)
     # Wrong type here? mypy catches it immediately.
 ```
 </Tab>
@@ -347,7 +347,7 @@ export const logger = new Logger({ level: process.env.LOG_LEVEL });
 // user-service.ts
 import { logger } from "./logger";
 
-class UserService {
+class User {
   constructor(private db: Database) {}
 
   async getUser(id: string) {
@@ -356,7 +356,7 @@ class UserService {
   }
 }
 
-// Tests don't mock the logger — it's infrastructure
+// Tests don't mock the logger. It's infrastructure.
 ```
 </Tab>
 <Tab value="Rust">
@@ -364,15 +364,15 @@ class UserService {
 static LOGGER: OnceLock<Logger> = OnceLock::new();
 pub fn logger() -> &'static Logger { LOGGER.get_or_init(Logger::new) }
 
-struct UserService { db: Database }
+struct User { db: Database }
 
-impl UserService {
+impl User {
     async fn get_user(&self, id: &str) -> Result<User, Error> {
         logger().info(&format!("Fetching user: {}", id));
         self.db.query("...").await
     }
 }
-// Tests don't mock the logger — it's infrastructure
+// Tests don't mock the logger. It's infrastructure.
 ```
 </Tab>
 <Tab value="Python">
@@ -381,7 +381,7 @@ import logging
 
 logger = logging.getLogger(__name__)  # module-level, never mocked
 
-class UserService:
+class User:
     def __init__(self, db: Database) -> None:
         self._db = db
 
@@ -538,7 +538,7 @@ class Store {
     await this.db.query("INSERT INTO users ...", user);
     return { type: "Ok", data: undefined };
   }
-  // Store accumulates all validation rules for all types — God object
+  // Store accumulates all validation rules for all types. God object.
 }
 
 // ✅ Good: logic in the domain object
@@ -566,7 +566,7 @@ impl Store {
             return Err(SaveError::InvalidEmail);
         }
         self.db.insert_user(user).await
-        // Store accumulates all validation rules — God object
+        // Store accumulates all validation rules. God object.
     }
 }
 
@@ -595,7 +595,7 @@ class Store:
         if "@" not in user.email:
             raise InvalidEmailError(user.email)
         await self._db.insert_user(user)
-        # Store accumulates all validation rules — God object
+        # Store accumulates all validation rules. God object.
 
 # ✅ Good: logic in the domain object
 @dataclass
@@ -617,7 +617,7 @@ class Store:
 
 The Store reads and writes. It doesn't know what makes a User valid any more than a filing cabinet knows what makes a contract legal. Business rules live in business objects.
 
-This means the object's own invariants. Not every rule that touches it. If `User` ends up with twenty methods, that's not a dependency problem. That's a [struct problem](/docs/fundamentals/3-structs).
+This means the object's own invariants. Not every rule that touches it. If `User` ends up with twenty methods, that's not a dependency problem. That's a [struct problem](/docs/fundamentals/modeling/structs).
 
 ## Practical Wiring
 
@@ -625,24 +625,13 @@ All dependencies get constructed in one place. One file. That's it.
 
 <Excalidraw>
 ```mermaid
-graph TD
-    A[main.ts / main.rs] --> B[Create Infrastructure]
-    B --> C[Logger]
-    B --> D[Config]
+graph LR
+    A[main] --> B["Infrastructure\nLogger · Config"]
+    B --> C["Persistence\nDatabase · Cache"]
+    C --> D["Domain\nUser · Order · Payment"]
+    D --> E[App · Run]
 
-    A --> E[Create Persistence]
-    E --> F[Database]
-    E --> G[Cache]
-
-    A --> H[Create Services]
-    H --> I[UserService db, cache]
-    H --> J[OrderService db]
-    H --> K[PaymentService db]
-
-    A --> L[Create App]
-    L --> M[App all services]
-
-    M --> N[Run]
+    class E green
 ```
 </Excalidraw>
 
@@ -659,11 +648,11 @@ async function main() {
   const cache = new Cache(config.redisUrl);
   await cache.connect();
 
-  const userService = new UserService(db, cache);
-  const orderService = new OrderService(db);
-  const paymentService = new PaymentService(db, config.stripeKey);
+  const users = new User(db, cache);
+  const orders = new Order(db);
+  const payments = new Payment(db, config.stripeKey);
 
-  const app = new App(userService, orderService, paymentService);
+  const app = new App(users, orders, payments);
 
   await app.listen(config.port);
 }
@@ -684,11 +673,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let db = Database::connect(&config.db_url).await?;
     let cache = Cache::connect(&config.redis_url).await?;
 
-    let user_service = UserService::new(db.clone(), cache.clone());
-    let order_service = OrderService::new(db.clone());
-    let payment_service = PaymentService::new(db.clone(), config.stripe_key);
+    let users = User::new(db.clone(), cache.clone());
+    let orders = Order::new(db.clone());
+    let payments = Payment::new(db.clone(), config.stripe_key);
 
-    let app = App::new(user_service, order_service, payment_service);
+    let app = App::new(users, orders, payments);
 
     app.listen(config.port).await?;
     Ok(())
@@ -697,7 +686,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 </Tab>
 <Tab value="Python">
 ```python
-# main.py — the only place where wiring happens
+# main.py: the only place where wiring happens
 import asyncio
 import logging
 
@@ -709,11 +698,11 @@ async def main() -> None:
     db = await Database.connect(config.db_url)
     cache = await Cache.connect(config.redis_url)
 
-    user_service = UserService(db, cache)
-    order_service = OrderService(db)
-    payment_service = PaymentService(db, config.stripe_key)
+    users = User(db, cache)
+    orders = Order(db)
+    payments = Payment(db, config.stripe_key)
 
-    app = App(user_service, order_service, payment_service)
+    app = App(users, orders, payments)
     await app.listen(config.port)
 
 if __name__ == "__main__":
@@ -726,7 +715,7 @@ No magic. No runtime resolution. If it doesn't compile, you fix it before deploy
 
 ## When This Doesn't Apply
 
-**Frameworks with their own lifecycle.** NestJS, Next.js, Axum — they have opinions about wiring. Work within their constraints. Keep individual classes explicit even if the framework handles top-level construction.
+**Frameworks with their own lifecycle.** NestJS, Next.js, Axum. They have opinions about wiring. Work within their constraints. Keep individual classes explicit even if the framework handles top-level construction.
 
 **Plugin systems.** If you're building an extension point where third parties provide implementations at runtime, dynamic resolution is the point. That's the exception, not a reason to DI-framework your whole app.
 
@@ -736,7 +725,7 @@ No magic. No runtime resolution. If it doesn't compile, you fix it before deploy
 
 <Objection>Doesn't passing everything through constructors get unwieldy?</Objection>
 
-Ten constructor parameters means you have a class that hasn't been split yet. That's the smell. Not the explicit dependencies — the fact that one class is doing ten things. Split it. The constructor then tells you exactly what each piece needs, which is the point.
+Ten constructor parameters means you have a class that hasn't been split yet. That's the smell. Not the explicit dependencies. The fact that one class is doing ten things. Split it. The constructor then tells you exactly what each piece needs, which is the point.
 
 <Objection>What about interface-based dependency injection?</Objection>
 
@@ -749,7 +738,7 @@ interface Database {
   query(sql: string): Promise<Result<Row[], QueryError>>;
 }
 
-class UserService {
+class User {
   constructor(private db: Database) {}
   // Can pass real Database or TestDatabase
 }
@@ -761,7 +750,7 @@ trait Database {
     async fn query(&self, sql: &str) -> Result<Vec<Row>, QueryError>;
 }
 
-struct UserService<D: Database> {
+struct User<D: Database> {
     db: D,
 }
 
@@ -775,10 +764,10 @@ from typing import Protocol
 class Database(Protocol):
     async def query(self, sql: str) -> list[Row]: ...
 
-class UserService:
+class User:
     def __init__(self, db: Database) -> None:
         self._db = db
-    # Can pass real Database or MemDatabase —
+    # Can pass real Database or MemDatabase.
     # structural subtyping, no explicit registration needed
 ```
 </Tab>
@@ -793,7 +782,7 @@ Put them in the type.
 <Tabs items={['TypeScript', 'Rust', 'Python']}>
 <Tab value="TypeScript">
 ```typescript
-class UserService {
+class User {
   constructor(
     private db: Database,
     private cache?: Cache,
@@ -812,12 +801,12 @@ class UserService {
 </Tab>
 <Tab value="Rust">
 ```rust
-struct UserService {
+struct User {
     db: Database,
     cache: Option<Cache>,
 }
 
-impl UserService {
+impl User {
     async fn get_user(&self, id: &str) -> Result<User, GetUserError> {
         if let Some(cache) = &self.cache {
             if let Ok(user) = cache.get(id).await {
@@ -832,7 +821,7 @@ impl UserService {
 </Tab>
 <Tab value="Python">
 ```python
-class UserService:
+class User:
     def __init__(self, db: Database, cache: Cache | None = None) -> None:
         self._db = db
         self._cache = cache

@@ -1,5 +1,5 @@
 {
   "title": "Style",
   "defaultOpen": true,
-  "pages": ["1-sorting", "2-comments"]
+  "pages": ["sorting", "comments"]
 }

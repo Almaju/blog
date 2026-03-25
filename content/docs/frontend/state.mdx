@@ -173,7 +173,7 @@ The UI becomes a switch statement:
               return render_dashboard(user)
           case AuthError(message=message):
               return Response(status=401, json={"error": message})
-  # No null checks. No boolean conditions. The match is exhaustive —
+  # No null checks. No boolean conditions. The match is exhaustive.
   # mypy will tell you if you forget a branch.
   ```
   </Tab>
@@ -324,7 +324,7 @@ graph LR
 Use Zustand. Use XState. Use signals. Use `useReducer`. Write your own with a class and event listeners. The mechanism is irrelevant. What matters is the discipline: state lives outside components, components are pure functions over state.
 
 ```typescript
-// Zustand store — state lives here, not in components
+// Zustand store: state lives here, not in components
 const useAppStore = create<AppState & Actions>((set) => ({
   auth: { status: 'guest' },
   dashboard: { status: 'idle' },
