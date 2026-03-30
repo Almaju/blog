@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@excalidraw/excalidraw": "^0.18.0",
-    "@excalidraw/mermaid-to-excalidraw": "^2.1.1",
+    "@excalidraw/mermaid-to-excalidraw": "^2.2.2",
     "fumadocs-core": "16.6.17",
     "fumadocs-mdx": "14.2.10",
     "fumadocs-ui": "16.6.17",
@@ -30,7 +30,7 @@
     "roughjs": "^4.6.6"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.8",
+    "@biomejs/biome": "^2.4.9",
     "@tailwindcss/postcss": "^4.2.2",
     "@types/jsdom": "^28.0.1",
     "@types/mdx": "^2.0.13",
